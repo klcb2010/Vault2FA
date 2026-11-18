@@ -2,21 +2,17 @@
 'use strict';
 
 const SYNC_SETTINGS_KEY = 'syncSettings';
-const SYNC_PREFIX = 'session:';
+const WEBDAV_CREDENTIALS_KEY = 'webdavCredentials';
+const WEBDAV_FILENAME = 'vault2fa-backup.json';
+const SYNC_AUTO_UPLOAD_ALARM = 'syncAutoUpload';
 
 const defaultSyncSettings = {
   enabled: false,
-  sessionId: '',
   intervalMinutes: 5,
   lastUploadedAt: null,
   lastDownloadedAt: null,
-  useEncryptedPayload: false,
+  connected: false,
 };
-
-const SYNC_MAX_ITEM_BYTES = 8192;
-const SYNC_SAFE_ITEM_BYTES = 7000;
-const SYNC_MAX_TOTAL_BYTES = 102400;
-const SYNC_AUTO_UPLOAD_ALARM = 'syncAutoUpload';
 
 function normalizeSyncIntervalMinutes(value){
   return Math.max(1, parseInt(value, 10) || 5);
@@ -28,19 +24,18 @@ async function clearSyncAutoUploadAlarm(){
 
 async function scheduleNextSyncAutoUploadAlarm(settings){
   const sync = settings || await getSyncSettings();
-  if(!sync.enabled || !sync.sessionId){
+  if(!sync.enabled || !sync.connected){
     await clearSyncAutoUploadAlarm();
     return;
   }
-  const delayMinutes = normalizeSyncIntervalMinutes(sync.intervalMinutes);
   if(browser.alarms && typeof browser.alarms.create === 'function'){
-    browser.alarms.create(SYNC_AUTO_UPLOAD_ALARM, { delayInMinutes: delayMinutes });
+    browser.alarms.create(SYNC_AUTO_UPLOAD_ALARM, { delayInMinutes: normalizeSyncIntervalMinutes(sync.intervalMinutes) });
   }
 }
 
 async function ensureSyncAutoUploadAlarm(){
   const settings = await getSyncSettings();
-  if(!settings.enabled || !settings.sessionId){
+  if(!settings.enabled || !settings.connected){
     await clearSyncAutoUploadAlarm();
     return;
   }
@@ -48,309 +43,146 @@ async function ensureSyncAutoUploadAlarm(){
     await runAutoUploadTick();
     return;
   }
-  const alarm = await browser.alarms.get(SYNC_AUTO_UPLOAD_ALARM);
-  if(alarm) return;
-  try {
-    await runAutoUploadTick();
-  } finally {
-    await scheduleNextSyncAutoUploadAlarm(settings);
-  }
+  if(await browser.alarms.get(SYNC_AUTO_UPLOAD_ALARM)) return;
+  try { await runAutoUploadTick(); }
+  finally { await scheduleNextSyncAutoUploadAlarm(settings); }
 }
 
 async function getSyncSettings(){
   const result = await browser.storage.local.get(SYNC_SETTINGS_KEY);
   return Object.assign({}, defaultSyncSettings, result[SYNC_SETTINGS_KEY] || {});
 }
+
 async function setSyncSettings(next){
   const merged = Object.assign({}, await getSyncSettings(), next || {});
   await browser.storage.local.set({ [SYNC_SETTINGS_KEY]: merged });
   return merged;
 }
 
-function getSyncKey(sessionId){
-  return SYNC_PREFIX + String(sessionId || '').trim();
-}
-function getSyncChunkKey(baseKey, index){
-  return `${baseKey}:chunk:${index}`;
-}
-function estimateSyncItemBytes(key, value){
-  return String(key).length + JSON.stringify(value).length;
-}
-function splitAccountsForSync(accounts, baseKey){
-  const chunks = [];
-  let current = [];
-  for(const account of accounts){
-    const candidate = current.concat([account]);
-    const candidateBytes = estimateSyncItemBytes(getSyncChunkKey(baseKey, chunks.length), candidate);
-    if(candidateBytes > SYNC_SAFE_ITEM_BYTES){
-      if(current.length === 0){
-        throw new Error('One account entry is too large to sync.');
-      }
-      chunks.push(current);
-      current = [account];
-      const singleBytes = estimateSyncItemBytes(getSyncChunkKey(baseKey, chunks.length), current);
-      if(singleBytes > SYNC_SAFE_ITEM_BYTES){
-        throw new Error('One account entry is too large to sync.');
-      }
-      continue;
-    }
-    current = candidate;
-  }
-  if(current.length) chunks.push(current);
-  return chunks;
+async function getWebdavCredentials(){
+  const result = await browser.storage.local.get(WEBDAV_CREDENTIALS_KEY);
+  return result[WEBDAV_CREDENTIALS_KEY] || null;
 }
 
-function splitStringForSync(value, baseKey){
-  const source = String(value || '');
-  if(!source) return [''];
-  const chunks = [];
-  let cursor = 0;
-  while(cursor < source.length){
-    let nextCursor = Math.min(source.length, cursor + SYNC_SAFE_ITEM_BYTES);
-    let candidate = source.slice(cursor, nextCursor);
-    while(candidate && estimateSyncItemBytes(getSyncChunkKey(baseKey, chunks.length), candidate) > SYNC_SAFE_ITEM_BYTES){
-      nextCursor -= 1;
-      candidate = source.slice(cursor, nextCursor);
-    }
-    if(!candidate){
-      throw new Error('Encrypted payload is too large to sync.');
-    }
-    chunks.push(candidate);
-    cursor = nextCursor;
-  }
-  return chunks;
+function normalizeWebdavUrl(value){
+  let url;
+  try { url = new URL(String(value || '').trim()); }
+  catch (_) { throw new Error('请输入有效的 WebDAV 服务器地址。'); }
+  if(!['http:', 'https:'].includes(url.protocol)) throw new Error('WebDAV 地址必须使用 HTTP 或 HTTPS。');
+  if(url.username || url.password || url.search || url.hash) throw new Error('服务器地址中不能包含用户名、密码、查询参数或片段。');
+  url.pathname = url.pathname.replace(/\/+$/, '') + '/';
+  return url.toString();
 }
 
-async function uploadToSync(accounts, settings, options = {}){
-  const useEncryptedPayload = !!options.useEncryptedPayload;
-  await appendDebugInfo('Sync upload requested', {
-    sessionId: settings.sessionId,
-    count: Array.isArray(accounts) ? accounts.length : 0,
-    fullAccounts: Array.isArray(accounts) ? accounts : [],
-    settings,
-    useEncryptedPayload,
-  });
-  if(!settings.sessionId) return { skipped: true };
-  const baseKey = getSyncKey(settings.sessionId);
-  let mode = 'plainAccounts';
-  let payloadCount = Array.isArray(accounts) ? accounts.length : 0;
-  let chunkedAccounts = [];
-  let chunkedEncryptedPayload = [];
-  if(useEncryptedPayload){
-    const vault = await getVaultSettings();
-    if(!vault.encryptionEnabled){
-      throw new Error('Enable local encryption before uploading encrypted payload.');
-    }
-    const encryptedPayload = await getEncryptedPayload();
-    if(!encryptedPayload){
-      throw new Error('Encrypted local payload was not found.');
-    }
-    mode = 'encryptedPayload';
-    payloadCount = 0;
-    chunkedEncryptedPayload = splitStringForSync(JSON.stringify(encryptedPayload), baseKey);
-  } else {
-    chunkedAccounts = splitAccountsForSync(Array.isArray(accounts) ? accounts : [], baseKey);
+function getWebdavFileUrl(baseUrl){
+  return new URL(WEBDAV_FILENAME, baseUrl).toString();
+}
+
+function webdavAuthHeader(credentials){
+  return 'Basic ' + btoa(unescape(encodeURIComponent(credentials.username + ':' + credentials.password)));
+}
+
+async function webdavFetch(url, credentials, options = {}){
+  const headers = Object.assign({}, options.headers || {}, { Authorization: webdavAuthHeader(credentials) });
+  const response = await fetch(url, Object.assign({ cache: 'no-store', credentials: 'omit' }, options, { headers }));
+  if(!response.ok){
+    const detail = response.status === 401 || response.status === 403
+      ? 'WebDAV 用户名或密码错误，或当前账号没有访问权限。'
+      : 'WebDAV 请求失败（HTTP ' + response.status + '）。';
+    throw new Error(detail);
   }
-  const payload = {
+  return response;
+}
+
+async function loginWebdav(settings){
+  const baseUrl = normalizeWebdavUrl(settings && settings.url);
+  const username = String(settings && settings.username || '').trim();
+  const password = String(settings && settings.password || '');
+  if(!username || !password) throw new Error('请输入 WebDAV 用户名和密码。');
+  const credentials = { url: baseUrl, username, password };
+  await webdavFetch(baseUrl, credentials, { method: 'PROPFIND', headers: { Depth: '0' } });
+  await browser.storage.local.set({ [WEBDAV_CREDENTIALS_KEY]: credentials });
+  const sync = await setSyncSettings({ connected: true });
+  await scheduleNextSyncAutoUploadAlarm(sync);
+  return { success: true, settings: sync, url: baseUrl, username };
+}
+
+async function requireWebdavCredentials(){
+  const credentials = await getWebdavCredentials();
+  if(!credentials || !credentials.url || !credentials.username || !credentials.password){
+    throw new Error('请先登录 WebDAV 服务器。');
+  }
+  return credentials;
+}
+
+async function buildEncryptedBackup(){
+  const vault = await getVaultSettings();
+  if(!vault.encryptionEnabled) throw new Error('请先开启本地保险库加密，再使用 WebDAV 同步。');
+  const payload = await getEncryptedPayload();
+  if(!payload || !payload.iv || !payload.data) throw new Error('未找到已加密的保险库数据。');
+  return {
+    format: 'vault2fa-webdav',
     version: 1,
-    sessionId: settings.sessionId,
     updatedAt: Date.now(),
-    count: payloadCount,
-    mode,
-    chunkCount: mode === 'encryptedPayload' ? chunkedEncryptedPayload.length : chunkedAccounts.length,
-  };
-  if(estimateSyncItemBytes(baseKey, payload) > SYNC_MAX_ITEM_BYTES){
-    throw new Error('Sync metadata is too large.');
-  }
-  const previous = await browser.storage.sync.get(baseKey);
-  await appendDebugInfo('Sync upload previous metadata loaded', { baseKey, previous });
-  const previousPayload = previous[baseKey];
-  const previousChunkCount = previousPayload && previousPayload.version === 1
-    ? Math.max(0, Number(previousPayload.chunkCount) || 0)
-    : 0;
-
-  const nextItems = { [baseKey]: payload };
-  let totalBytes = estimateSyncItemBytes(baseKey, payload);
-  const activeChunks = mode === 'encryptedPayload' ? chunkedEncryptedPayload : chunkedAccounts;
-  activeChunks.forEach((chunk, idx) => {
-    const chunkKey = getSyncChunkKey(baseKey, idx);
-    const itemBytes = estimateSyncItemBytes(chunkKey, chunk);
-    if(itemBytes > SYNC_MAX_ITEM_BYTES){
-      throw new Error('Sync data exceeds per-item storage limit.');
-    }
-    totalBytes += itemBytes;
-    nextItems[chunkKey] = chunk;
-  });
-  if(totalBytes > SYNC_MAX_TOTAL_BYTES){
-    throw new Error('Sync data exceeds browser sync storage limit. Reduce account count or use local storage.');
-  }
-
-  await appendDebugInfo('Sync upload request payload prepared', {
-    baseKey,
+    mode: 'encryptedPayload',
     payload,
-    chunkedAccounts,
-    chunkedEncryptedPayload,
-    nextItems,
-    totalBytes,
+  };
+}
+
+async function uploadToSync(){
+  const credentials = await requireWebdavCredentials();
+  const backup = await buildEncryptedBackup();
+  const response = await webdavFetch(getWebdavFileUrl(credentials.url), credentials, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify(backup),
   });
-
-  try {
-    await browser.storage.sync.set(nextItems);
-    await appendDebugInfo('Sync upload storage.sync.set success', {
-      baseKey,
-      itemKeys: Object.keys(nextItems),
-      chunkCount: activeChunks.length,
-      totalBytes,
-    });
-  } catch (err) {
-    await appendDebugInfo('Sync upload storage.sync.set failed', {
-      baseKey,
-      requestItems: nextItems,
-      error: err && err.message ? err.message : String(err),
-    });
-    throw err;
-  }
-
-  const verify = await browser.storage.sync.get(Object.keys(nextItems));
-  await appendDebugInfo('Sync upload verification fetch result', {
-    requestedKeys: Object.keys(nextItems),
-    response: verify,
-  });
-
-  if(previousChunkCount > activeChunks.length){
-    const staleChunkKeys = [];
-    for(let i = activeChunks.length; i < previousChunkCount; i += 1){
-      staleChunkKeys.push(getSyncChunkKey(baseKey, i));
-    }
-    if(staleChunkKeys.length){
-      await browser.storage.sync.remove(staleChunkKeys);
-      await appendDebugInfo('Sync upload stale chunks removed', { staleChunkKeys });
-    }
-  }
-  await setSyncSettings({ lastUploadedAt: payload.updatedAt });
-  const result = { success: true, updatedAt: payload.updatedAt, count: payload.count, mode };
-  await appendDebugInfo('Sync upload completed', result);
+  const updatedAt = backup.updatedAt;
+  await setSyncSettings({ lastUploadedAt: updatedAt, connected: true });
+  const result = { success: true, updatedAt, mode: 'encryptedPayload' };
+  await appendDebugInfo('WebDAV upload completed', { updatedAt, mode: result.mode, status: response.status });
   return result;
 }
 
 async function runAutoUploadTick(){
   const settings = await getSyncSettings();
-  if(!settings.enabled || !settings.sessionId) return { skipped: true, reason: 'disabled' };
-  let accounts = [];
-  if(!settings.useEncryptedPayload){
-    try {
-      accounts = await getLocalAccounts();
-    } catch (err) {
-      if(err && err.code === 'NEED_UNLOCK') return { skipped: true, reason: 'vault_locked' };
-      throw err;
-    }
+  if(!settings.enabled || !settings.connected) return { skipped: true, reason: 'disabled' };
+  try {
+    await getLocalAccounts();
+  } catch (err) {
+    if(err && err.code === 'NEED_UNLOCK') return { skipped: true, reason: 'vault_locked' };
+    throw err;
   }
-  return uploadToSync(accounts, settings, { useEncryptedPayload: !!settings.useEncryptedPayload });
+  return uploadToSync();
 }
 
-async function downloadFromSync(sessionId, options = {}){
-  const apply = options.apply !== false;
-  const allowEncrypted = !!options.allowEncrypted;
-  await appendDebugInfo('Sync download requested', { sessionId });
-  const sid = String(sessionId || '').trim();
-  if(!sid) throw new Error('Sync session ID is required.');
-  const baseKey = getSyncKey(sid);
-  const result = await browser.storage.sync.get(baseKey);
-  await appendDebugInfo('Sync download metadata response', { baseKey, response: result });
-  const payload = result[baseKey];
-  if(!payload) {
-    throw new Error('No synced data was found for this session ID.');
+async function downloadFromSync(options = {}){
+  const credentials = await requireWebdavCredentials();
+  const response = await webdavFetch(getWebdavFileUrl(credentials.url), credentials, { method: 'GET' });
+  let backup;
+  try { backup = await response.json(); }
+  catch (_) { throw new Error('WebDAV 备份文件不是有效的 JSON。'); }
+  if(!backup || backup.format !== 'vault2fa-webdav' || backup.version !== 1 ||
+     backup.mode !== 'encryptedPayload' || !backup.payload ||
+     !backup.payload.iv || !backup.payload.data){
+    throw new Error('WebDAV 备份文件格式无效或不受支持。');
   }
-
-  let mode = payload.version === 1 ? String(payload.mode || 'plainAccounts') : 'plainAccounts';
-  let accounts = [];
-  let encryptedPayload = null;
-  const chunkCount = Math.max(0, Number(payload.chunkCount) || 0);
-  if(payload.version === 1){
-    const chunkKeys = [];
-    for(let i = 0; i < chunkCount; i += 1){
-      chunkKeys.push(getSyncChunkKey(baseKey, i));
-    }
-    const chunkData = chunkKeys.length ? await browser.storage.sync.get(chunkKeys) : {};
-    await appendDebugInfo('Sync download chunk response', { chunkKeys, chunkData, mode });
-    if(mode === 'encryptedPayload'){
-      const textChunks = [];
-      for(const key of chunkKeys){
-        const chunk = chunkData[key];
-        if(typeof chunk !== 'string'){
-          throw new Error('Synced encrypted payload is incomplete. Try uploading again from another device.');
-        }
-        textChunks.push(chunk);
-      }
-      const encryptedText = textChunks.join('');
-      if(!encryptedText){
-        throw new Error('Synced encrypted payload is empty.');
-      }
-      encryptedPayload = JSON.parse(encryptedText);
-      if(!encryptedPayload || typeof encryptedPayload !== 'object' || !encryptedPayload.iv || !encryptedPayload.data){
-        throw new Error('Synced encrypted payload is invalid.');
-      }
-    } else {
-      accounts = [];
-      for(const key of chunkKeys){
-        const chunk = chunkData[key];
-        if(!Array.isArray(chunk)){
-          throw new Error('Synced data is incomplete. Try uploading again from another device.');
-        }
-        accounts.push(...chunk);
-      }
-    }
-  } else if(Array.isArray(payload.accounts)) {
-    mode = 'plainAccounts';
-    accounts = payload.accounts;
-  } else {
-    throw new Error('No synced data was found for this session ID.');
+  const encryptedPayload = backup.payload;
+  const containsEncryptedHeader = hasPayloadHeaderFields(encryptedPayload);
+  if(options.apply === false){
+    return { success: true, updatedAt: backup.updatedAt || null, count: 0, mode: 'encryptedPayload', containsEncryptedHeader, requiresEncryptedConfirmation: true };
   }
-
-  const containsEncryptedHeader = mode === 'encryptedPayload' && hasPayloadHeaderFields(encryptedPayload);
-  if(!apply){
-    return {
-      success: true,
-      updatedAt: payload.updatedAt || null,
-      count: mode === 'plainAccounts' ? accounts.length : 0,
-      mode,
-      containsEncryptedHeader,
-      requiresEncryptedConfirmation: containsEncryptedHeader,
-    };
+  if(!options.allowEncrypted){
+    const err = new Error('下载的数据为加密保险库，请确认覆盖本地数据。');
+    err.code = 'NEED_ENCRYPTED_CONFIRM';
+    throw err;
   }
-
-  if(mode === 'encryptedPayload'){
-    if(containsEncryptedHeader && !allowEncrypted){
-      const err = new Error('Synced cloud payload is encrypted. Confirm encrypted overwrite first.');
-      err.code = 'NEED_ENCRYPTED_CONFIRM';
-      throw err;
-    }
-    await setEncryptedPayload(encryptedPayload);
-    await clearPlainAccounts();
-    await persistSessionUnlockState(null);
-    await clearVaultAutoLockAlarm();
-    await setVaultSettings({ encryptionEnabled: true, salt: null, lastUnlockedAt: null });
-  } else {
-    await setLocalAccounts(accounts);
-  }
-  await setSyncSettings({ lastDownloadedAt: Date.now() });
-  await appendDebugInfo('Sync download applied to local storage', {
-    sessionId: sid,
-    count: accounts.length,
-    fullAccounts: accounts,
-    mode,
-    containsEncryptedHeader,
-    sourcePayload: payload,
-  });
-  const resultPayload = {
-    success: true,
-    accounts,
-    updatedAt: payload.updatedAt || null,
-    count: accounts.length,
-    mode,
-    containsEncryptedHeader,
-    appliedEncryptedPayload: mode === 'encryptedPayload',
-  };
-  await appendDebugInfo('Sync download completed', resultPayload);
-  return resultPayload;
+  await setEncryptedPayload(encryptedPayload);
+  await clearPlainAccounts();
+  await persistSessionUnlockState(null);
+  await clearVaultAutoLockAlarm();
+  await setVaultSettings({ encryptionEnabled: true, salt: null, lastUnlockedAt: null });
+  await setSyncSettings({ lastDownloadedAt: Date.now(), connected: true });
+  await appendDebugInfo('WebDAV download applied', { updatedAt: backup.updatedAt || null, mode: 'encryptedPayload' });
+  return { success: true, accounts: [], updatedAt: backup.updatedAt || null, count: 0, mode: 'encryptedPayload', containsEncryptedHeader, appliedEncryptedPayload: true };
 }
