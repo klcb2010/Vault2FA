@@ -275,34 +275,37 @@
       </button>
     </div>
     <div class="settings-section" data-settings-panel="security">
+    <div class="fg">
+      <label class="fl" id="labelWebdavUrl">WebDAV 服务器地址</label>
+      <input class="fi mono" id="webdavUrl" type="url" placeholder="https://dav.example.com/remote.php/dav/files/user/" autocomplete="url" />
+    </div>
+    <div class="fg">
+      <label class="fl" id="labelWebdavUsername">用户名</label>
+      <input class="fi" id="webdavUsername" type="text" autocomplete="username" />
+    </div>
+    <div class="fg">
+      <label class="fl" id="labelWebdavPassword">密码</label>
+      <input class="fi" id="webdavPassword" type="password" autocomplete="current-password" />
+    </div>
+    <div class="sync-actions">
+      <button class="btn-secondary" id="btnLoginWebdav">登录</button>
+    </div>
     <div class="fg sync-toggle-row">
       <label class="toggle-wrap">
         <input type="checkbox" id="syncEnabled" />
-        <span id="syncEnableText">Enable Firefox Sync upload</span>
+        <span id="syncEnableText">启用 WebDAV 自动同步</span>
       </label>
-      <div class="fhint" id="syncEnabledHint">Accounts are stored locally by default. When auto upload is on, local changes upload by interval to the session ID below.</div>
-    </div>
-    <div class="fg sync-toggle-row" id="syncEncryptedUploadRow" style="display:none">
-      <label class="toggle-wrap">
-        <input type="checkbox" id="syncUseEncryptedPayload" />
-        <span id="syncUseEncryptedPayloadText">Upload encrypted local vault payload directly</span>
-      </label>
-      <div class="fhint" id="syncUseEncryptedPayloadHint">When local encryption is enabled, upload encrypted storage payload from this browser instead of plaintext account data.</div>
+      <div class="fhint" id="syncEnabledHint">仅上传加密后的保险库数据。请先开启本地保险库加密并登录 WebDAV。</div>
     </div>
     <div class="fg">
-      <label class="fl" id="labelSyncSession">Sync Session ID</label>
-      <input class="fi mono" id="syncSessionId" type="text" placeholder="my-team-phone-1" autocomplete="off" />
-      <div class="fhint" id="syncSessionHint">Each session ID is isolated. Use a different ID for each sync group.</div>
-    </div>
-    <div class="fg">
-      <label class="fl" id="labelSyncInterval">Auto Upload Interval (minutes)</label>
+      <label class="fl" id="labelSyncInterval">自动上传间隔（分钟）</label>
       <input class="fi" id="syncInterval" type="number" min="1" step="1" value="5" />
-      <div class="fhint" id="syncIntervalHint">When auto upload is enabled, local changes upload no more often than this interval.</div>
+      <div class="fhint" id="syncIntervalHint">开启自动同步后，按设定间隔上传加密保险库。</div>
     </div>
     <div class="sync-actions">
-      <button class="btn-secondary" id="btnSaveSync">Save Sync Settings</button>
-      <button class="btn-secondary" id="btnUploadSync">Upload Local Data Now</button>
-      <button class="btn-danger" id="btnDownloadSync">Download Cloud Data to Local</button>
+      <button class="btn-secondary" id="btnSaveSync">保存同步设置</button>
+      <button class="btn-secondary" id="btnUploadSync">立即上传</button>
+      <button class="btn-danger" id="btnDownloadSync">立即下载</button>
     </div>
     <div class="warn-box" id="syncWarnOverwrite">Downloading from the cloud will overwrite your current local accounts. A confirmation dialog will appear first.</div>
     <div class="sync-meta" id="syncMeta"></div>
