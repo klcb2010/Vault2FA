@@ -1002,8 +1002,7 @@ function render(){
   const emptySub = byId('emptySub');
   if(siteFilterEnabled && accounts.length && !visibleAccounts.length && !q){
     const siteNames = [...new Set(accounts.map(a => String(a.issuer || a.label || '').trim()).filter(Boolean))];
-    const shownSites = siteNames.slice(0, 5);
-    const siteSummary = shownSites.join('、') + (siteNames.length > shownSites.length ? ' 等' : '');
+    const siteSummary = siteNames.join('、');
     emptyTitle.textContent = t('noWebsiteMatchTitle');
     emptySub.textContent = tFmt('noWebsiteMatchSub', { sites: siteSummary || '—' });
   } else {
