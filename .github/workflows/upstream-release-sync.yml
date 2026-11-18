@@ -65,7 +65,8 @@ jobs:
               git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Sync upstream release $upstream_latest with local mods"
               git push origin HEAD:main
             else
-              echo "Upstream merge produced no local changes."
+              echo "Upstream merge produced no additional local file changes."
+              git push origin HEAD:main
             fi
           else
             echo "No new upstream release. Continue to local release check."
