@@ -499,3 +499,14 @@ html, body {
   color:var(--muted); font-size:10px; line-height:1.4;
 }
 .meta-chip.match { color:var(--accent); border-color:color-mix(in srgb, var(--accent) 35%, var(--border)); }
+
+
+/* WebDAV login state */
+.webdav-auth-actions { display:flex; gap:8px; }
+#webdavPassword:disabled {
+  opacity: .72;
+  color: var(--muted);
+  -webkit-text-security: disc;
+  user-select: none;
+}
+#webdavPassword:disabled::selection { background: transparent; }
