@@ -932,7 +932,11 @@ function accountMatchesCurrentSite(account){
     if(issuer.includes(service) && aliases.some(alias => hostParts.some(part => part.includes(alias)))) return true;
   }
   const normalizedIssuer = issuer.replace(/[^a-z0-9]/g, '');
-  return hostParts.some(part => part.length > 2 && normalizedIssuer.includes(part.replace(/[^a-z0-9]/g, '')));
+  const genericHostParts = new Set(['www','com','net','org','edu','gov','mil','int','co','uk','us','ca','au','cn','jp','de','fr','io','app','dev','info','biz']);
+  return hostParts.some(part => {
+    const token = part.replace(/[^a-z0-9]/g, '');
+    return token.length > 2 && !genericHostParts.has(token) && normalizedIssuer.includes(token);
+  });
 }
 async function initSiteFilter(){
   const saved = await browser.storage.local.get('siteFilterEnabled');
