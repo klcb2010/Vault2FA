@@ -161,15 +161,7 @@ patch("popup/popup.html",
       </button>
       <button class="settings-menu-item" type="button" data-settings-section="permission">''')
 patch("popup/popup.html",
-    '''    <div class="settings-section" data-settings-panel="permission">
-    <div class="fg sync-toggle-row">
-      <label class="toggle-wrap">
-        <input type="checkbox" id="siteFilterEnabled" />
-        <span id="siteFilterEnabledText">仅显示当前网站匹配的验证码</span>
-      </label>
-      <div class="fhint" id="siteFilterEnabledHint">开启后，仅显示域名规则与当前活动网站匹配的账号</div>
-    </div>
-''',
+    '    <div class="settings-section" data-settings-panel="permission">\\n',
     '''    <div class="settings-section" data-settings-panel="site-filter">
     <div class="fg sync-toggle-row">
       <label class="toggle-wrap">
