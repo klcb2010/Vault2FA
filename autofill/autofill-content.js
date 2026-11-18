@@ -448,7 +448,26 @@
   window.addEventListener('scroll', onReposition, true);
   window.addEventListener('resize', onReposition);
   if(browserApi.runtime && browserApi.runtime.onMessage){
-    browserApi.runtime.onMessage.addListener((message) => {
+    browserApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if(message && message.action === 'fillOtpFromPopup'){
+        (async () => {
+          const input = isSupportedTextInput(state.lastContextInput) && state.lastContextInput.isConnected
+            ? state.lastContextInput
+            : document.activeElement;
+          if(!isSupportedTextInput(input)) throw new Error('NO_OTP_INPUT');
+          const response = await browserApi.runtime.sendMessage({
+            action:'generateCodeForAutofillById',
+            id:String(message.accountId || ''),
+            hostname:window.location.hostname || ''
+          });
+          if(!response || response.success === false || !response.code) throw new Error((response && response.error) || 'CODE_GENERATION_FAILED');
+          input.focus();
+          setNativeInputValue(input, response.code);
+          fireInputEvents(input);
+          return { success:true };
+        })().then(sendResponse).catch(err => sendResponse({ success:false, error:err && err.message ? err.message : String(err) }));
+        return true;
+      }
       if(!message || message.action !== 'openAutofillPopupHere') return false;
       const input = isSupportedTextInput(state.lastContextInput) && state.lastContextInput.isConnected
         ? state.lastContextInput
