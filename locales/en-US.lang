@@ -1,6 +1,6 @@
 [Information]
 TRANSLATOR=DrJason33564
-VERSION=2.9.0
+VERSION=2.9.2
 
 [Language]
 LANGUAGE=English
@@ -10,15 +10,13 @@ LOCALE_ID=en-US
 localOnly=Local only
 syncOn=Sync ON · 
 storageModeLabel=Storage mode: 
-storageModeSync=Local + Sync upload
+storageModeSync=Local + WebDAV cloud sync
 storageModeLocal=Local only
 lastUpload=Last upload: 
 lastDownload=Last local overwrite from cloud: 
 uploadSuccess=Uploaded local data
 syncSaved=Sync settings saved
 syncDisabled=Sync settings saved
-needSession=Please enter a sync session ID first.
-needSessionEnable=Please enter a sync session ID before enabling sync.
 noAccountsToExport=No account to export
 copied=Copied!
 addAccount=Add Account
