@@ -1,6 +1,6 @@
 [Information]
 TRANSLATOR=DrJason33564
-VERSION=2.9.0
+VERSION=2.9.2
 
 [Language]
 LANGUAGE=简体中文
@@ -10,15 +10,13 @@ LOCALE_ID=zh-CN
 localOnly=仅本地
 syncOn=同步已开启 · 
 storageModeLabel=存储模式：
-storageModeSync=本地 + 同步上传
+storageModeSync=本地 + WebDAV 云端同步
 storageModeLocal=仅本地
 lastUpload=上次上传：
 lastDownload=上次从云端覆盖本地：
 uploadSuccess=已上传本地数据
 syncSaved=同步设置已保存
 syncDisabled=同步设置已保存
-needSession=请先输入同步会话 ID
-needSessionEnable=启用自动上传前请先输入同步会话 ID
 noAccountsToExport=没有可导出的账号
 copied=已复制！
 addAccount=添加账号
