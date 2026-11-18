@@ -68,6 +68,8 @@ const POPUP_FALLBACK = {
   "syncIntervalLabel": "Auto Upload Interval (minutes)",
   "syncIntervalHint": "Upload the encrypted vault at the selected interval.",
   "syncSaveBtn": "Save Sync Settings",
+  "webdavLogoutBtn": "Logout",
+  "webdavLoginBtn": "Log in now",
   "syncUploadBtn": "Upload Now",
   "syncDownloadBtn": "Download Now",
   "syncWarnOverwrite": "Downloading will replace the local encrypted vault.",
@@ -252,7 +254,7 @@ const STATIC_TEXT_MAP = {
   permissionRightclickEnableQRScanText: 'permissionRightclickEnableQRScanText', permissionRightclickEnableQRScanHint: 'permissionRightclickEnableQRScanHint',
   permissionRightclickEnableAutofillText: 'permissionRightclickEnableAutofillText', permissionRightclickEnableAutofillHint: 'permissionRightclickEnableAutofillHint',
   btnSavePermission: 'permissionSaveBtn',
-  syncEnableText: 'syncEnableText', syncEnabledHint: 'syncEnabledHint', labelWebdavUrl: 'webdavUrlLabel', labelWebdavUsername: 'webdavUsernameLabel', labelWebdavPassword: 'webdavPasswordLabel', btnLoginWebdav: 'webdavLoginBtn',
+  syncEnableText: 'syncEnableText', syncEnabledHint: 'syncEnabledHint', labelWebdavUrl: 'webdavUrlLabel', labelWebdavUsername: 'webdavUsernameLabel', labelWebdavPassword: 'webdavPasswordLabel', btnLoginWebdav: 'webdavLoginBtn', btnLogoutWebdav: 'webdavLogoutBtn',
   labelSyncInterval: 'syncIntervalLabel', syncIntervalHint: 'syncIntervalHint', btnSaveSync: 'syncSaveBtn', btnUploadSync: 'syncUploadBtn',
   btnDownloadSync: 'syncDownloadBtn', syncWarnOverwrite: 'syncWarnOverwrite', vaultEnableText: 'vaultEnableText',
   vaultEnableHint: 'vaultEnableHint', labelVaultPassphrase: 'labelVaultPassphrase',
@@ -1268,8 +1270,22 @@ function updateSyncUi(){
   byId('syncInterval').value = syncSettings.intervalMinutes || 5;
   const urlField = byId('webdavUrl');
   const usernameField = byId('webdavUsername');
+  const passwordField = byId('webdavPassword');
+  const loginButton = byId('btnLoginWebdav');
+  const logoutButton = byId('btnLogoutWebdav');
+  const loggedIn = !!syncSettings.connected;
   if(urlField && syncSettings.url) urlField.value = syncSettings.url;
   if(usernameField && syncSettings.username) usernameField.value = syncSettings.username;
+  if(passwordField){
+    passwordField.value = loggedIn ? '••••••••••' : '';
+    passwordField.disabled = loggedIn;
+    passwordField.readOnly = loggedIn;
+    passwordField.setAttribute('aria-label', loggedIn ? 'WebDAV 已登录，密码已隐藏' : 'WebDAV 密码');
+  }
+  if(urlField) urlField.disabled = loggedIn;
+  if(usernameField) usernameField.disabled = loggedIn;
+  if(loginButton) loginButton.disabled = loggedIn;
+  if(logoutButton) logoutButton.style.display = loggedIn ? '' : 'none';
   const meta = [
     t('storageModeLabel') + (syncSettings.enabled && syncSettings.connected ? t('storageModeSync') : t('storageModeLocal')),
     t('lastUpload') + fmtTs(syncSettings.lastUploadedAt),
@@ -2022,24 +2038,48 @@ byId('btnLoginWebdav').addEventListener('click', async () => {
       password: byId('webdavPassword').value
     }});
     syncSettings = Object.assign({}, syncSettings, resp.settings || {}, { url: resp.url, username: resp.username, connected: true });
-    byId('webdavPassword').value = '';
     updateSyncUi();
     toast(tf('webdavLoginSuccess', 'WebDAV 登录成功'));
   } catch(err){ errEl.textContent = err.message; errEl.style.display = 'block'; }
 });
 
-byId('btnSaveSync').addEventListener('click', async () => {
-  if(!guardVaultUnlocked()) return;
+async function persistWebdavSyncSettings(){
   const errEl = byId('syncErr');
   errEl.style.display = 'none';
   const enabled = byId('syncEnabled').checked;
   const intervalMinutes = Math.max(1, parseInt(byId('syncInterval').value, 10) || 5);
   try {
     const resp = await sendMessage({ action:'saveSyncSettings', settings:{ enabled, intervalMinutes } });
-    syncSettings = resp.settings || syncSettings;
+    syncSettings = Object.assign({}, syncSettings, resp.settings || {});
     updateSyncUi();
-    updateSyncBadgeFromResponse(resp);
-    toast(enabled ? t('syncSaved') : t('syncDisabled'));
+    return true;
+  } catch(err){
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    updateSyncUi();
+    return false;
+  }
+}
+
+byId('syncEnabled').addEventListener('change', async () => {
+  if(!guardVaultUnlocked()){
+    updateSyncUi();
+    return;
+  }
+  await persistWebdavSyncSettings();
+});
+
+byId('syncInterval').addEventListener('change', async () => {
+  await persistWebdavSyncSettings();
+});
+
+byId('btnLogoutWebdav').addEventListener('click', async () => {
+  const errEl = byId('syncErr'); errEl.style.display = 'none';
+  try {
+    const resp = await sendMessage({ action:'logoutWebdav' });
+    syncSettings = Object.assign({}, syncSettings, resp.settings || {}, { connected:false, enabled:false, url:'', username:'' });
+    updateSyncUi();
+    toast(tf('webdavLogoutSuccess', '已退出 WebDAV 登录'));
   } catch(err){ errEl.textContent = err.message; errEl.style.display = 'block'; }
 });
 
