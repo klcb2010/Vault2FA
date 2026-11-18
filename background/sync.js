@@ -7,15 +7,10 @@ const WEBDAV_FILENAME = 'vault2fa-backup.json';
 
 const defaultSyncSettings = {
   enabled: false,
-  intervalMinutes: 5,
   lastUploadedAt: null,
   lastDownloadedAt: null,
   connected: false,
 };
-
-function normalizeSyncIntervalMinutes(value){
-  return Math.max(1, parseInt(value, 10) || 5);
-}
 
 let webdavUploadDebounceTimer = null;
 let webdavUploadInProgress = false;
