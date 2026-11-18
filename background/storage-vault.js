@@ -275,6 +275,7 @@ async function setLocalAccounts(accounts){
     header: getPayloadHeaderForLog(payload),
   });
   await refreshAutofillInjectionForOpenTabs();
+  await scheduleWebdavUploadAfterLocalChange();
 }
 
 async function unlockVault(passphrase){
