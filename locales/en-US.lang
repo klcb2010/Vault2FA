@@ -83,6 +83,9 @@ saveEditSuccess=Account updated
 settingDrawerTitle=Setting
 settingSecurityTitle=Sync & Security
 settingPermissionTitle=Permission
+settingSiteFilterTitle=Current Website Codes
+siteFilterEnabledText=Only show codes for the current website
+siteFilterEnabledHint=Match accounts automatically using the current website and issuer or custom domain rules.
 settingDebugTitle=Debugging
 vaultEnableText=Enable local encryption
 vaultEnableHint=When enabled, local accounts are encrypted at rest. Unlock is required once per browser session.
@@ -173,6 +176,10 @@ permissionRightclickEnableAutofillText=Enable open-autofill-popup context menu
 permissionRightclickEnableAutofillHint=Show a open-autofill-popup action in the right-click input-field context menu.
 permissionSaveBtn=Save Permission Settings
 permissionSavedToast=Permission Settings saved
+autofillSuccess=Verification code filled automatically
+noOtpInput=No suitable input field found on the current page
+noOtpInputCopied=No input field found; code copied instead
+noActiveTab=Unable to access the current tab
 
 [qr-scanner]
 title=Vault <em>2FA</em> — QR Scanner
