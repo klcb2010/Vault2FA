@@ -36,8 +36,7 @@ searchPlaceholder=Search accounts...
 syncEnabledHint=Only the encrypted vault is uploaded. Enable local vault encryption and log in to WebDAV first.
 syncEnableText=Enable WebDAV automatic sync
 syncIntervalLabel=Auto Upload Interval (minutes)
-syncIntervalHint=Upload the encrypted vault at the selected interval.
-syncSaveBtn=Save Sync Settings
+syncIntervalHint=Automatically upload the encrypted vault when local accounts are added, edited, or deleted. No periodic upload is performed.
 syncUploadBtn=Upload Now
 syncDownloadBtn=Download Now
 syncWarnOverwrite=Downloading will replace the local encrypted vault.
@@ -206,7 +205,9 @@ showQrCodeGenerateError=Failed to generate QR code.
 webdavUrlLabel=WebDAV server address
 webdavUsernameLabel=Username
 webdavPasswordLabel=Password
-webdavLoginBtn=Login
+webdavLoginBtn=Log in now
+webdavLogoutBtn=Log out
+webdavLogoutSuccess=Logged out of WebDAV
 webdavLoginSuccess=WebDAV login successful
 
 [json-import]
