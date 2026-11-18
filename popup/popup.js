@@ -318,6 +318,18 @@ function setTheme(mode, persist = true){
 }
 
 function applyStaticTranslations(){
+  const versionLabel = byId('permissionVersionLabel');
+  const versionLink = byId('permissionVersionLink');
+  if(versionLabel) versionLabel.textContent = tf('permissionVersionLabel', 'Current version:');
+  if(versionLink){
+    let version = popupVersion;
+    try {
+      const manifest = browser.runtime.getManifest && browser.runtime.getManifest();
+      version = String((manifest && manifest.version) || version || '');
+    } catch (_) {}
+    versionLink.textContent = version;
+    versionLink.title = tf('permissionVersionLinkTitle', 'View add-on versions');
+  }
   for(const [id, key] of Object.entries(STATIC_TEXT_MAP)){
     const el = byId(id);
     if(!el) continue;
