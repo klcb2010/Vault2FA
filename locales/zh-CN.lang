@@ -1,6 +1,6 @@
 [Information]
 TRANSLATOR=DrJason33564
-VERSION=2.9.2
+VERSION=2.9.3
 
 [Language]
 LANGUAGE=简体中文
@@ -8,7 +8,7 @@ LOCALE_ID=zh-CN
 
 [popup]
 localOnly=仅本地
-syncOn=同步已开启 · 
+syncOn=同步已开启
 storageModeLabel=存储模式：
 storageModeSync=本地 + WebDAV 云端同步
 storageModeLocal=仅本地
