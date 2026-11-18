@@ -172,6 +172,8 @@ permissionRightclickEnableAutofillText=启用右键唤起自动填充
 permissionRightclickEnableAutofillHint=在输入框的右键菜单中增加唤起自动填充选项
 
 permissionSaveBtn=保存权限设置
+permissionVersionLabel=当前版本：
+permissionVersionLinkTitle=查看扩展版本
 permissionSavedToast=权限设置已保存
 autofillSuccess=已自动填入验证码
 noOtpInput=当前网页没有可填入的输入框
