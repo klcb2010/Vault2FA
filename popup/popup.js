@@ -1265,7 +1265,9 @@ function updateSyncUi(){
   if(urlField) urlField.value = loggedIn ? (syncSettings.url || '') : urlField.value;
   if(usernameField) usernameField.value = loggedIn ? (syncSettings.username || '') : usernameField.value;
   if(passwordField){
-    passwordField.value = loggedIn ? '••••••••••' : '';
+    // Do not clear an in-progress password entry during asynchronous UI refreshes.
+    // On mobile, settings requests may finish after the user has started typing.
+    if(loggedIn) passwordField.value = '••••••••••';
     passwordField.disabled = loggedIn;
     passwordField.readOnly = loggedIn;
     passwordField.setAttribute('aria-label', loggedIn ? 'WebDAV 已登录，密码已隐藏' : 'WebDAV 密码');
@@ -2067,6 +2069,7 @@ byId('btnLogoutWebdav').addEventListener('click', async () => {
   try {
     const resp = await sendMessage({ action:'logoutWebdav' });
     syncSettings = Object.assign({}, syncSettings, resp.settings || {}, { connected:false, enabled:false, url:'', username:'' });
+    byId('webdavPassword').value = '';
     updateSyncUi();
     toast(tf('webdavLogoutSuccess', '已退出 WebDAV 登录'));
   } catch(err){ errEl.textContent = err.message; errEl.style.display = 'block'; }
