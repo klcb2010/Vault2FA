@@ -105,7 +105,7 @@ jobs:
             sed -E 's/.*-klcb\.([0-9]+)$/\1/' |
             grep -E '^[0-9]+$' |
             sort -n | tail -n 1 || true)"
-          next_revision="$(("${next_revision:-0}" + 1))"
+          next_revision="$(( ${next_revision:-0} + 1 ))"
           release_tag="${upstream_latest}-klcb.${next_revision}"
 
           echo "Publishing local changes: $release_tag"
