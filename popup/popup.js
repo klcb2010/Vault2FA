@@ -63,20 +63,18 @@ const POPUP_FALLBACK = {
   "vaultLockSub": "Local vault is locked. Enter your passphrase to unlock this browser session.",
   "unlockVault": "Unlock Vault",
   "searchPlaceholder": "Search accounts...",
-  "syncEnabledHint": "Only the encrypted vault is uploaded. Enable local vault encryption and log in to WebDAV first.",
-  "syncEnableText": "Enable WebDAV automatic sync",
-  "syncIntervalLabel": "Auto Upload Interval (minutes)",
-  "syncIntervalHint": "Upload the encrypted vault at the selected interval.",
+  "syncEnabledHint": "仅上传加密后的保险库数据。请先开启本地保险库加密并登录 WebDAV。",
+  "syncEnableText": "启用 WebDAV 自动同步",
   "syncSaveBtn": "Save Sync Settings",
-  "webdavLogoutBtn": "Logout",
+  "webdavLogoutBtn": "退出登录",
   "webdavLoginBtn": "Log in now",
   "syncUploadBtn": "Upload Now",
   "syncDownloadBtn": "Download Now",
   "syncWarnOverwrite": "Downloading will replace the local encrypted vault.",
-  "webdavUrlLabel": "WebDAV server address",
-  "webdavUsernameLabel": "Username",
-  "webdavPasswordLabel": "Password",
-  "webdavLoginBtn": "Login",
+  "webdavUrlLabel": "服务器地址",
+  "webdavUsernameLabel": "用户名",
+  "webdavPasswordLabel": "密码",
+  "webdavLoginBtn": "现在登录",
   "addDrawerTitle": "Add Account",
   "tabManual": "Manual",
   "tabQr": "Scan QR",
@@ -255,7 +253,7 @@ const STATIC_TEXT_MAP = {
   permissionRightclickEnableAutofillText: 'permissionRightclickEnableAutofillText', permissionRightclickEnableAutofillHint: 'permissionRightclickEnableAutofillHint',
   btnSavePermission: 'permissionSaveBtn',
   syncEnableText: 'syncEnableText', syncEnabledHint: 'syncEnabledHint', labelWebdavUrl: 'webdavUrlLabel', labelWebdavUsername: 'webdavUsernameLabel', labelWebdavPassword: 'webdavPasswordLabel', btnLoginWebdav: 'webdavLoginBtn', btnLogoutWebdav: 'webdavLogoutBtn',
-  labelSyncInterval: 'syncIntervalLabel', syncIntervalHint: 'syncIntervalHint', btnSaveSync: 'syncSaveBtn', btnUploadSync: 'syncUploadBtn',
+  btnUploadSync: 'syncUploadBtn',
   btnDownloadSync: 'syncDownloadBtn', syncWarnOverwrite: 'syncWarnOverwrite', vaultEnableText: 'vaultEnableText',
   vaultEnableHint: 'vaultEnableHint', labelVaultPassphrase: 'labelVaultPassphrase',
   vaultTimerEnableText: 'vaultTimerEnableText', vaultTimerEnableHint: 'vaultTimerEnableHint', labelVaultTimerPeriod: 'labelVaultTimerPeriod',
@@ -1267,15 +1265,14 @@ function updateSyncUi(){
   byId('rightclickEnabled').checked = featureSettings.rightclickEnabled !== false;
   byId('rightclickAutofillEnabled').checked = featureSettings.rightclickAutofillEnabled !== false;
   byId('syncEnabled').checked = !!syncSettings.enabled;
-  byId('syncInterval').value = syncSettings.intervalMinutes || 5;
   const urlField = byId('webdavUrl');
   const usernameField = byId('webdavUsername');
   const passwordField = byId('webdavPassword');
   const loginButton = byId('btnLoginWebdav');
   const logoutButton = byId('btnLogoutWebdav');
   const loggedIn = !!syncSettings.connected;
-  if(urlField && syncSettings.url) urlField.value = syncSettings.url;
-  if(usernameField && syncSettings.username) usernameField.value = syncSettings.username;
+  if(urlField) urlField.value = loggedIn ? (syncSettings.url || '') : urlField.value;
+  if(usernameField) usernameField.value = loggedIn ? (syncSettings.username || '') : usernameField.value;
   if(passwordField){
     passwordField.value = loggedIn ? '••••••••••' : '';
     passwordField.disabled = loggedIn;
@@ -2029,6 +2026,12 @@ byId('btnSaveEdit').addEventListener('click', async () => {
   }
 });
 
+['copy','cut','contextmenu','selectstart'].forEach(eventName => {
+  byId('webdavPassword').addEventListener(eventName, event => {
+    if(byId('webdavPassword').disabled) event.preventDefault();
+  });
+});
+
 byId('btnLoginWebdav').addEventListener('click', async () => {
   const errEl = byId('syncErr'); errEl.style.display = 'none';
   try {
@@ -2047,9 +2050,8 @@ async function persistWebdavSyncSettings(){
   const errEl = byId('syncErr');
   errEl.style.display = 'none';
   const enabled = byId('syncEnabled').checked;
-  const intervalMinutes = Math.max(1, parseInt(byId('syncInterval').value, 10) || 5);
   try {
-    const resp = await sendMessage({ action:'saveSyncSettings', settings:{ enabled, intervalMinutes } });
+    const resp = await sendMessage({ action:'saveSyncSettings', settings:{ enabled } });
     syncSettings = Object.assign({}, syncSettings, resp.settings || {});
     updateSyncUi();
     return true;
@@ -2066,10 +2068,6 @@ byId('syncEnabled').addEventListener('change', async () => {
     updateSyncUi();
     return;
   }
-  await persistWebdavSyncSettings();
-});
-
-byId('syncInterval').addEventListener('change', async () => {
   await persistWebdavSyncSettings();
 });
 
