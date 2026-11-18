@@ -51,7 +51,7 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "vault2fa@example.com",
+      "id": "vault2fa-klcb@example.com",
       "strict_min_version": "115.0",
       "data_collection_permissions": {
         "required": [
