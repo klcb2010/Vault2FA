@@ -29,19 +29,23 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, settings: await getSyncSettings() });
         return;
       }
+      case 'loginWebdav': {
+        const result = await loginWebdav(message.settings || {});
+        sendResponse(result);
+        return;
+      }
       case 'saveSyncSettings': {
         const incoming = message.settings || {};
+        const credentials = await getWebdavCredentials();
+        if(incoming.enabled && !credentials) throw new Error('请先登录 WebDAV 服务器。');
+        if(incoming.enabled){
+          const vault = await getVaultSettings();
+          if(!vault.encryptionEnabled) throw new Error('请先开启本地保险库加密，再启用自动同步。');
+        }
         const settings = await setSyncSettings({
           enabled: !!incoming.enabled,
-          sessionId: String(incoming.sessionId || '').trim(),
           intervalMinutes: normalizeSyncIntervalMinutes(incoming.intervalMinutes),
-          useEncryptedPayload: !!incoming.useEncryptedPayload,
-        });
-        await appendDebugInfo('Sync settings updated', {
-          enabled: settings.enabled,
-          sessionId: settings.sessionId,
-          intervalMinutes: settings.intervalMinutes,
-          useEncryptedPayload: settings.useEncryptedPayload,
+          connected: !!credentials,
         });
         await scheduleNextSyncAutoUploadAlarm(settings);
         sendResponse({ success: true, settings, upload: { skipped: true } });
@@ -62,20 +66,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       case 'uploadSyncNow': {
-        const settings = await getSyncSettings();
-        const sessionId = String(message.sessionId || settings.sessionId || '').trim();
-        if(!sessionId) throw new Error('Set a sync session ID first.');
-        const useEncryptedPayload = message.useEncryptedPayload == null
-          ? !!settings.useEncryptedPayload
-          : !!message.useEncryptedPayload;
-        const accounts = useEncryptedPayload ? [] : await getLocalAccounts();
-        let upload;
-        try {
-          upload = await uploadToSync(accounts, Object.assign({}, settings, { sessionId }), { useEncryptedPayload });
-        } finally {
-          await scheduleNextSyncAutoUploadAlarm(await getSyncSettings());
-        }
-        await appendDebugInfo('uploadSyncNow response', { upload });
+        const upload = await uploadToSync();
+        await scheduleNextSyncAutoUploadAlarm(await getSyncSettings());
         sendResponse({ success: true, upload, settings: await getSyncSettings() });
         return;
       }
@@ -313,13 +305,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       case 'downloadSyncToLocal': {
-        const settings = await getSyncSettings();
-        const sessionId = String(message.sessionId || settings.sessionId || '').trim();
-        const data = await downloadFromSync(sessionId, {
+        const data = await downloadFromSync({
           apply: !message.dryRun,
           allowEncrypted: !!message.allowEncrypted,
         });
-        await appendDebugInfo('downloadSyncToLocal response', { data });
         sendResponse(data);
         return;
       }
