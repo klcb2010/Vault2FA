@@ -1267,7 +1267,9 @@ function updateSyncUi(){
   byId('syncEnabled').checked = !!syncSettings.enabled;
   byId('syncInterval').value = syncSettings.intervalMinutes || 5;
   const urlField = byId('webdavUrl');
+  const usernameField = byId('webdavUsername');
   if(urlField && syncSettings.url) urlField.value = syncSettings.url;
+  if(usernameField && syncSettings.username) usernameField.value = syncSettings.username;
   const meta = [
     t('storageModeLabel') + (syncSettings.enabled && syncSettings.connected ? t('storageModeSync') : t('storageModeLocal')),
     t('lastUpload') + fmtTs(syncSettings.lastUploadedAt),
