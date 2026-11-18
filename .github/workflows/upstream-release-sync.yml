@@ -13,14 +13,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync:
+  sync-and-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check and merge new upstream release
+      - name: Sync new upstream release while preserving local mods
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -28,41 +28,82 @@ jobs:
           set -euo pipefail
           git remote add upstream https://github.com/DrJason33564/Vault2FA.git
           git fetch upstream --tags --prune
-          latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
+
+          upstream_latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
           previous="$(cat mod/upstream-release.txt 2>/dev/null || true)"
-          echo "Latest=$latest Previous=$previous"
-          [[ -n "$latest" && "$latest" != "$previous" ]] || exit 0
+          echo "Latest upstream=$upstream_latest Previous=$previous"
 
-          backup="$(mktemp -d)"
-          cp -a mod "$backup/mod"
-          [[ ! -d .github/workflows ]] || cp -a .github/workflows "$backup/workflows"
-          [[ ! -d .github/actions ]] || cp -a .github/actions "$backup/actions"
-          [[ ! -f README.md ]] || cp README.md "$backup/README.md"
-          [[ ! -f README.EN.md ]] || cp README.EN.md "$backup/README.EN.md"
+          if [[ -n "$upstream_latest" && "$upstream_latest" != "$previous" ]]; then
+            backup="$(mktemp -d)"
+            cp -a mod "$backup/mod"
+            [[ ! -d .github/workflows ]] || cp -a .github/workflows "$backup/workflows"
+            [[ ! -d .github/actions ]] || cp -a .github/actions "$backup/actions"
+            [[ ! -f README.md ]] || cp README.md "$backup/README.md"
+            [[ ! -f README.EN.md ]] || cp README.EN.md "$backup/README.EN.md"
 
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' merge --no-edit -X ours "$latest"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' merge --no-edit -X ours "$upstream_latest"
 
-          rm -rf mod
-          cp -a "$backup/mod" mod
-          if [[ -d "$backup/workflows" ]]; then
-            rm -rf .github/workflows
-            mkdir -p .github
-            cp -a "$backup/workflows" .github/workflows
+            rm -rf mod
+            cp -a "$backup/mod" mod
+            if [[ -d "$backup/workflows" ]]; then
+              rm -rf .github/workflows
+              mkdir -p .github
+              cp -a "$backup/workflows" .github/workflows
+            fi
+            if [[ -d "$backup/actions" ]]; then
+              rm -rf .github/actions
+              mkdir -p .github
+              cp -a "$backup/actions" .github/actions
+            fi
+            [[ ! -f "$backup/README.md" ]] || cp "$backup/README.md" README.md
+            [[ ! -f "$backup/README.EN.md" ]] || cp "$backup/README.EN.md" README.EN.md
+
+            python3 mod/apply.py
+            printf '%s\n' "$upstream_latest" > mod/upstream-release.txt
+            git add -A
+            if ! git diff --cached --quiet; then
+              git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Sync upstream release $upstream_latest with local mods"
+              git push origin HEAD:main
+            else
+              echo "Upstream merge produced no local changes."
+            fi
+          else
+            echo "No new upstream release. Continue to local release check."
           fi
-          if [[ -d "$backup/actions" ]]; then
-            rm -rf .github/actions
-            mkdir -p .github
-            cp -a "$backup/actions" .github/actions
-          fi
-          [[ ! -f "$backup/README.md" ]] || cp "$backup/README.md" README.md
-          [[ ! -f "$backup/README.EN.md" ]] || cp "$backup/README.EN.md" README.EN.md
 
-          python3 mod/apply.py
-          printf '%s\n' "$latest" > mod/upstream-release.txt
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes after upstream sync."
-            exit 0
+      - name: Publish unreleased local changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin --tags
+          git fetch upstream --tags
+          git checkout main
+          git pull --ff-only origin main
+
+          upstream_latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
+          [[ -n "$upstream_latest" ]] || { echo "Cannot determine upstream release tag."; exit 1; }
+
+          last_local_tag="$(git tag --list 'v*-klcb.*' --sort=-version:refname | head -n 1)"
+          head_sha="$(git rev-parse HEAD)"
+
+          if [[ -n "$last_local_tag" ]]; then
+            last_release_sha="$(git rev-parse "$last_local_tag^{commit}")"
+            if [[ "$head_sha" == "$last_release_sha" ]]; then
+              echo "HEAD is already published as $last_local_tag."
+              exit 0
+            fi
           fi
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Sync upstream release $latest with local mods"
-          git push origin HEAD:main
+
+          next_revision="$(git tag --list "${upstream_latest}-klcb.*" |
+            sed -nE "s/^\${upstream_latest//./\\.}-klcb\.([0-9]+)$/\1/p" |
+            sort -n | tail -n 1)"
+          next_revision="$((${next_revision:-0} + 1))"
+          release_tag="${upstream_latest}-klcb.${next_revision}"
+
+          echo "Publishing local changes: $release_tag"
+          gh release create "$release_tag" \
+            --target "$head_sha" \
+            --title "Vault2FA $release_tag" \
+            --generate-notes
