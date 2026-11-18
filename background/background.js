@@ -421,6 +421,10 @@ if(browser.alarms && browser.alarms.onAlarm){
       lockVault('auto_timer_expired').catch(() => {});
       return;
     }
+    if(alarm.name === WEBDAV_AUTO_UPLOAD_ALARM){
+      runScheduledWebdavUpload().catch(() => {});
+      return;
+    }
   });
 }
 
