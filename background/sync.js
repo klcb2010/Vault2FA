@@ -4,6 +4,7 @@
 const SYNC_SETTINGS_KEY = 'syncSettings';
 const WEBDAV_CREDENTIALS_KEY = 'webdavCredentials';
 const WEBDAV_FILENAME = 'vault2fa-backup.json';
+const WEBDAV_AUTO_UPLOAD_ALARM = 'vault2fa-webdav-auto-upload';
 
 const defaultSyncSettings = {
   enabled: false,
@@ -13,30 +14,54 @@ const defaultSyncSettings = {
 };
 
 let webdavUploadDebounceTimer = null;
-let webdavUploadInProgress = false;
 let webdavUploadPending = false;
+let webdavUploadPromise = null;
 
 async function scheduleWebdavUploadAfterLocalChange(){
   const settings = await getSyncSettings();
   if(!settings.enabled || !settings.connected) return;
   webdavUploadPending = true;
   if(webdavUploadDebounceTimer) clearTimeout(webdavUploadDebounceTimer);
-  webdavUploadDebounceTimer = setTimeout(async () => {
-    webdavUploadDebounceTimer = null;
-    if(webdavUploadInProgress) return;
-    webdavUploadInProgress = true;
-    webdavUploadPending = false;
+  webdavUploadDebounceTimer = setTimeout(() => {
+    runScheduledWebdavUpload().catch(() => {});
+  }, 900);
+  // The alarm wakes the Firefox background context if it is suspended before the debounce timer fires.
+  if(browser.alarms && browser.alarms.create){
     try {
-      await uploadToSync();
+      await browser.alarms.create(WEBDAV_AUTO_UPLOAD_ALARM, { delayInMinutes: 0.5 });
     } catch(err) {
-      await appendDebugInfo('WebDAV change-triggered upload failed', {
+      await appendDebugInfo('Unable to schedule WebDAV upload alarm', {
         error: err && err.message ? err.message : String(err),
       });
-    } finally {
-      webdavUploadInProgress = false;
-      if(webdavUploadPending) scheduleWebdavUploadAfterLocalChange().catch(() => {});
     }
-  }, 900);
+  }
+}
+
+async function runScheduledWebdavUpload(){
+  if(webdavUploadDebounceTimer){
+    clearTimeout(webdavUploadDebounceTimer);
+    webdavUploadDebounceTimer = null;
+  }
+  if(browser.alarms && browser.alarms.clear){
+    try { await browser.alarms.clear(WEBDAV_AUTO_UPLOAD_ALARM); } catch (_) {}
+  }
+  const settings = await getSyncSettings();
+  if(!settings.enabled || !settings.connected){
+    webdavUploadPending = false;
+    return;
+  }
+  if(webdavUploadPromise){
+    webdavUploadPending = true;
+    return;
+  }
+  webdavUploadPending = false;
+  try {
+    await uploadToSync();
+  } catch(err) {
+    await appendDebugInfo('WebDAV change-triggered upload failed', {
+      error: err && err.message ? err.message : String(err),
+    });
+  }
 }
 
 async function getSyncSettings(){
@@ -109,6 +134,10 @@ async function logoutWebdav(){
     clearTimeout(webdavUploadDebounceTimer);
     webdavUploadDebounceTimer = null;
   }
+  webdavUploadPending = false;
+  if(browser.alarms && browser.alarms.clear){
+    try { await browser.alarms.clear(WEBDAV_AUTO_UPLOAD_ALARM); } catch (_) {}
+  }
   return { success: true, settings };
 }
 
@@ -134,7 +163,7 @@ async function buildEncryptedBackup(){
   };
 }
 
-async function uploadToSync(){
+async function performWebdavUpload(){
   const credentials = await requireWebdavCredentials();
   const backup = await buildEncryptedBackup();
   const response = await webdavFetch(getWebdavFileUrl(credentials.url), credentials, {
@@ -149,8 +178,29 @@ async function uploadToSync(){
   return result;
 }
 
+function uploadToSync(){
+  if(webdavUploadPromise) return webdavUploadPromise;
+  webdavUploadPromise = performWebdavUpload().finally(() => {
+    webdavUploadPromise = null;
+    if(webdavUploadPending) scheduleWebdavUploadAfterLocalChange().catch(() => {});
+  });
+  return webdavUploadPromise;
+}
+
 async function downloadFromSync(options = {}){
   const credentials = await requireWebdavCredentials();
+  if(webdavUploadDebounceTimer){
+    clearTimeout(webdavUploadDebounceTimer);
+    webdavUploadDebounceTimer = null;
+  }
+  webdavUploadPending = false;
+  if(browser.alarms && browser.alarms.clear){
+    try { await browser.alarms.clear(WEBDAV_AUTO_UPLOAD_ALARM); } catch (_) {}
+  }
+  if(webdavUploadPromise){
+    try { await webdavUploadPromise; } catch (_) {}
+  }
+  webdavUploadPending = false;
   const response = await webdavFetch(getWebdavFileUrl(credentials.url), credentials, { method: 'GET' });
   let backup;
   try { backup = await response.json(); }
@@ -172,6 +222,7 @@ async function downloadFromSync(options = {}){
   }
   await setEncryptedPayload(encryptedPayload);
   await clearPlainAccounts();
+  webdavUploadPending = false;
   await persistSessionUnlockState(null);
   await clearVaultAutoLockAlarm();
   await setVaultSettings({ encryptionEnabled: true, salt: null, lastUnlockedAt: null });
