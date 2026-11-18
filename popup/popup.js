@@ -62,6 +62,7 @@ const POPUP_FALLBACK = {
   "unlockVault": "Unlock Vault",
   "searchPlaceholder": "Search accounts...",
   "syncEnabledHint": "Only encrypted vault data is uploaded. Enable local vault encryption and log in to WebDAV first.",
+  "syncNeedsEncryption": "Set a vault passphrase below and click Apply Security Setting. WebDAV sync will be enabled after local encryption is applied.",
   "syncDirectionHint": "Automatic sync uploads local changes to the cloud, including deletions. It is a backup, not an undelete or recovery feature.",
   "syncUploadHint": "Upload Now replaces the cloud backup with the current local vault.",
   "syncDownloadHint": "Download Now replaces the local vault with the cloud backup and asks for confirmation first.",
