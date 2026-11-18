@@ -50,7 +50,12 @@ async function ensureSyncAutoUploadAlarm(){
 
 async function getSyncSettings(){
   const result = await browser.storage.local.get(SYNC_SETTINGS_KEY);
-  return Object.assign({}, defaultSyncSettings, result[SYNC_SETTINGS_KEY] || {});
+  const credentials = await getWebdavCredentials();
+  return Object.assign({}, defaultSyncSettings, result[SYNC_SETTINGS_KEY] || {}, {
+    url: credentials && credentials.url || '',
+    username: credentials && credentials.username || '',
+    connected: !!credentials,
+  });
 }
 
 async function setSyncSettings(next){
