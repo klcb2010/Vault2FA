@@ -191,9 +191,10 @@ patch("autofill/autofill-content.js",
     """    browserApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if(message && message.action === 'fillOtpFromPopup'){
         (async () => {
-          const input = isSupportedTextInput(state.lastContextInput) && state.lastContextInput.isConnected
-            ? state.lastContextInput
-            : document.activeElement;
+          const activeInput = document.activeElement;
+          const input = isSupportedTextInput(activeInput)
+            ? activeInput
+            : (isSupportedTextInput(state.lastContextInput) && state.lastContextInput.isConnected ? state.lastContextInput : null);
           if(!isSupportedTextInput(input)) throw new Error('NO_OTP_INPUT');
           const response = await browserApi.runtime.sendMessage({
             action:'generateCodeForAutofillById',
