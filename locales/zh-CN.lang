@@ -36,8 +36,7 @@ searchPlaceholder=搜索账号...
 syncEnabledHint=仅上传加密后的保险库数据。请先开启本地保险库加密并登录 WebDAV
 syncEnableText=启用 WebDAV 自动同步
 syncIntervalLabel=自动上传间隔（分钟）
-syncIntervalHint=开启自动同步后，按设定间隔上传加密保险库
-syncSaveBtn=保存同步设置
+syncIntervalHint=本地账号发生新增、修改或删除时，自动上传加密保险库；此处间隔不再用于定时上传
 syncUploadBtn=立即上传
 syncDownloadBtn=立即下载
 syncWarnOverwrite=下载将覆盖本地加密保险库
@@ -204,10 +203,12 @@ migrationAccountsAdded=已由第三方源添加账号！
 showQrCodeLibraryError=二维码生成库加载失败
 showQrCodeGenerateError=二维码生成失败
 
-webdavUrlLabel=WebDAV 服务器地址
+webdavUrlLabel=服务器地址
 webdavUsernameLabel=用户名
 webdavPasswordLabel=密码
-webdavLoginBtn=登录
+webdavLoginBtn=现在登录
+webdavLogoutBtn=退出登录
+webdavLogoutSuccess=已退出 WebDAV 登录
 webdavLoginSuccess=WebDAV 登录成功
 
 [json-import]
