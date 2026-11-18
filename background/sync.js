@@ -152,12 +152,7 @@ async function uploadToSync(){
 async function runAutoUploadTick(){
   const settings = await getSyncSettings();
   if(!settings.enabled || !settings.connected) return { skipped: true, reason: 'disabled' };
-  try {
-    await getLocalAccounts();
-  } catch (err) {
-    if(err && err.code === 'NEED_UNLOCK') return { skipped: true, reason: 'vault_locked' };
-    throw err;
-  }
+  // The encrypted payload can be uploaded while the vault is locked.
   return uploadToSync();
 }
 
