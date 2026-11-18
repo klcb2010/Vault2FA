@@ -48,7 +48,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         const settings = await setSyncSettings({
           enabled: !!incoming.enabled,
-          intervalMinutes: normalizeSyncIntervalMinutes(incoming.intervalMinutes),
           connected: !!credentials,
         });
         sendResponse({ success: true, settings, upload: { skipped: true } });
