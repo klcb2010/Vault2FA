@@ -2021,7 +2021,7 @@ byId('btnLoginWebdav').addEventListener('click', async () => {
       username: byId('webdavUsername').value.trim(),
       password: byId('webdavPassword').value
     }});
-    syncSettings = Object.assign({}, syncSettings, resp.settings || {}, { url: resp.url, connected: true });
+    syncSettings = Object.assign({}, syncSettings, resp.settings || {}, { url: resp.url, username: resp.username, connected: true });
     byId('webdavPassword').value = '';
     updateSyncUi();
     toast(tf('webdavLoginSuccess', 'WebDAV 登录成功'));
