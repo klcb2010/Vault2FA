@@ -237,7 +237,7 @@ patch("locales/zh-CN.lang",
     "siteFilterEnabledHint=仅显示与当前网页匹配的已录入验证码\\nnoWebsiteMatchTitle=当前网站没有匹配的验证码\\nnoWebsiteMatchSub=已录入验证码的站点：{sites}")
 patch("locales/zh-CN.lang",
     "settingPermissionTitle=权限\n",
-    "settingPermissionTitle=权限\nsettingSiteFilterTitle=当前网站验证码\nsiteFilterEnabledText=仅显示当前网站匹配的验证码\nsiteFilterEnabledHint=根据当前网站自动匹配账号发行方或自定义域名规则\n")
+    "settingPermissionTitle=权限\nsettingSiteFilterTitle=当前网站验证码\nsiteFilterEnabledText=仅当前网站验证码\nsiteFilterEnabledHint=仅显示与当前网页匹配的已录入验证码\nnoWebsiteMatchTitle=当前网站没有匹配的验证码\nnoWebsiteMatchSub=已录入验证码的站点：{sites}\n")
 patch("locales/zh-CN.lang",
     "permissionSavedToast=权限设置已保存\n",
     "permissionSavedToast=权限设置已保存\nautofillSuccess=已自动填入验证码\nnoOtpInput=当前网页没有可填入的输入框\nnoOtpInputCopied=未找到输入框，验证码已复制\nnoActiveTab=无法获取当前网页\n")
@@ -249,7 +249,7 @@ patch("locales/en-US.lang",
     "siteFilterEnabledHint=Only show saved codes matching the current website.\\nnoWebsiteMatchTitle=No verification codes match this website\\nnoWebsiteMatchSub=Sites with saved verification codes: {sites}")
 patch("locales/en-US.lang",
     "settingPermissionTitle=Permission\n",
-    "settingPermissionTitle=Permission\nsettingSiteFilterTitle=Current Website Codes\nsiteFilterEnabledText=Only show codes for the current website\nsiteFilterEnabledHint=Match accounts automatically using the current website and issuer or custom domain rules.\n")
+    "settingPermissionTitle=Permission\nsettingSiteFilterTitle=Current Website Codes\nsiteFilterEnabledText=Only current website codes\nsiteFilterEnabledHint=Only show saved codes matching the current website.\nnoWebsiteMatchTitle=No verification codes match this website\nnoWebsiteMatchSub=Sites with saved verification codes: {sites}\n")
 patch("locales/en-US.lang",
     "permissionSavedToast=Permission Settings saved\n",
     "permissionSavedToast=Permission Settings saved\nautofillSuccess=Verification code filled automatically\nnoOtpInput=No suitable input field found on the current page\nnoOtpInputCopied=No input field found; code copied instead\nnoActiveTab=Unable to access the current tab\n")
