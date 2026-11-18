@@ -1,0 +1,68 @@
+name: Upstream release sync
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upstream-release-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check and merge new upstream release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/DrJason33564/Vault2FA.git
+          git fetch upstream --tags --prune
+          latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
+          previous="$(cat mod/upstream-release.txt 2>/dev/null || true)"
+          echo "Latest=$latest Previous=$previous"
+          [[ -n "$latest" && "$latest" != "$previous" ]] || exit 0
+
+          backup="$(mktemp -d)"
+          cp -a mod "$backup/mod"
+          [[ ! -d .github/workflows ]] || cp -a .github/workflows "$backup/workflows"
+          [[ ! -d .github/actions ]] || cp -a .github/actions "$backup/actions"
+          [[ ! -f README.md ]] || cp README.md "$backup/README.md"
+          [[ ! -f README.EN.md ]] || cp README.EN.md "$backup/README.EN.md"
+
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' merge --no-edit -X ours "$latest"
+
+          rm -rf mod
+          cp -a "$backup/mod" mod
+          if [[ -d "$backup/workflows" ]]; then
+            rm -rf .github/workflows
+            mkdir -p .github
+            cp -a "$backup/workflows" .github/workflows
+          fi
+          if [[ -d "$backup/actions" ]]; then
+            rm -rf .github/actions
+            mkdir -p .github
+            cp -a "$backup/actions" .github/actions
+          fi
+          [[ ! -f "$backup/README.md" ]] || cp "$backup/README.md" README.md
+          [[ ! -f "$backup/README.EN.md" ]] || cp "$backup/README.EN.md" README.EN.md
+
+          python3 mod/apply.py
+          printf '%s\n' "$latest" > mod/upstream-release.txt
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes after upstream sync."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Sync upstream release $latest with local mods"
+          git push origin HEAD:main
