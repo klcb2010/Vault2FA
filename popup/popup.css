@@ -445,10 +445,10 @@ html, body {
   border: 1px solid var(--border);
 }
 .logo-icon.logo-img { padding: 0; }
-.sync-badge.offline { color: var(--muted); }
-.sync-badge.offline .sync-dot { background: var(--muted); }
-.sync-badge.syncing { color: var(--accent); }
-.sync-badge.syncing .sync-dot { background: var(--accent); }
+.sync-badge.offline,
+.sync-badge.syncing { color:#000; }
+.sync-badge.offline .sync-dot,
+.sync-badge.syncing .sync-dot { background:#000; }
 .toggle-wrap {
   display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600;
 }
