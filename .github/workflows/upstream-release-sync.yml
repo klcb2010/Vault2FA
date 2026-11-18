@@ -110,6 +110,7 @@ jobs:
 
           echo "Publishing local changes: $release_tag"
           gh release create "$release_tag" \
+            --repo klcb2010/Vault2FA \
             --target "$head_sha" \
             --title "Vault2FA $release_tag" \
             --generate-notes
