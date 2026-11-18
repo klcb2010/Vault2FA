@@ -73,7 +73,7 @@ jobs:
             echo "No new upstream release. Continue to local release check."
           fi
 
-      - name: Publish unreleased local changes
+      - name: Package and publish Firefox XPI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -90,27 +90,49 @@ jobs:
             exit 1
           fi
 
-          last_local_tag="$(git tag --list 'v*-klcb.*' --sort=-version:refname | head -n 1)"
+          base_version="${upstream_latest#v}"
           head_sha="$(git rev-parse HEAD)"
+          last_local_tag="$(git tag --list "v${base_version}.*" --sort=-version:refname | head -n 1)"
 
-          if [[ -n "$last_local_tag" ]]; then
-            last_release_sha="$(git rev-parse "$last_local_tag^{commit}")"
-            if [[ "$head_sha" == "$last_release_sha" ]]; then
-              echo "HEAD is already published as $last_local_tag."
-              exit 0
-            fi
+          if [[ -n "$last_local_tag" ]] && [[ "$(git rev-parse "$last_local_tag^{commit}")" == "$head_sha" ]]; then
+            release_tag="$last_local_tag"
+          else
+            next_revision="$(git tag --list "v${base_version}.*" |
+              sed -E "s/^v${base_version//./\\.}\\.([0-9]+)$/\\1/" |
+              grep -E '^[0-9]+$' |
+              sort -n | tail -n 1 || true)"
+            next_revision="$(( ${next_revision:-0} + 1 ))"
+            release_tag="v${base_version}.${next_revision}"
           fi
 
-          next_revision="$(git tag --list "${upstream_latest}-klcb.*" |
-            sed -E 's/.*-klcb\.([0-9]+)$/\1/' |
-            grep -E '^[0-9]+$' |
-            sort -n | tail -n 1 || true)"
-          next_revision="$(( ${next_revision:-0} + 1 ))"
-          release_tag="${upstream_latest}-klcb.${next_revision}"
+          release_version="${release_tag#v}"
+          package_dir="$(mktemp -d)"
+          mkdir -p "$package_dir/xpi"
 
-          echo "Publishing local changes: $release_tag"
-          gh release create "$release_tag" \
+          rsync -a ./ "$package_dir/xpi/" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='mod/' \
+            --exclude='Vault2FA.xpi'
+
+          jq --arg version "$release_version" '.version = $version' \
+            "$package_dir/xpi/manifest.json" > "$package_dir/manifest.json"
+          mv "$package_dir/manifest.json" "$package_dir/xpi/manifest.json"
+
+          (cd "$package_dir/xpi" && zip -qr "$GITHUB_WORKSPACE/Vault2FA.xpi" .)
+
+          echo "Prepared unsigned Firefox package: Vault2FA.xpi ($release_version)"
+
+          if gh release view "$release_tag" --repo klcb2010/Vault2FA >/dev/null 2>&1; then
+            echo "Release $release_tag already exists; refreshing its XPI asset."
+          else
+            gh release create "$release_tag" \
+              --repo klcb2010/Vault2FA \
+              --target "$head_sha" \
+              --title "Vault2FA $release_tag" \
+              --generate-notes
+          fi
+
+          gh release upload "$release_tag" "$GITHUB_WORKSPACE/Vault2FA.xpi" \
             --repo klcb2010/Vault2FA \
-            --target "$head_sha" \
-            --title "Vault2FA $release_tag" \
-            --generate-notes
+            --clobber
