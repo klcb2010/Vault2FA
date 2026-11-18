@@ -18,10 +18,11 @@ let vaultStatus = { encryptionEnabled:false, unlocked:true, lastUnlockedAt:null 
 let vaultTimerSettings = { autoLockEnabled:false, autoLockMinutes:15 };
 let debugState = { enabled:false };
 let featureSettings = { autofillEnabled:true, rightclickEnabled:true, rightclickAutofillEnabled:true };
-let siteFilterEnabled = false;
+let siteFilterEnabled = true;
 let currentSiteHostname = '';
+let currentSiteTabId = null;
 let debugUiUnlocked = false;
-let uiLanguage = 'en-US';
+let uiLanguage = 'zh-CN';
 let uiTheme = 'auto';
 let editingAccountId = null;
 const debugTapTimes = [];
@@ -243,7 +244,8 @@ const STATIC_TEXT_MAP = {
   btnOpenQrTab: 'openQrTab', labelUri: 'labelUri', hintUri: 'hintUri', btnSave: 'saveAccountBtn', exportDrawerTitle: 'exportDrawerTitle',
   exportHint: 'exportHint', btnCopyExport: 'copyExportBtn', btnDownloadExportJson: 'exportJsonBtn', exportUriLabel: 'exportUriLabel', importDrawerTitle: 'importDrawerTitle', importInputLabel: 'importInputLabel', importFileHint: 'importFileHint', btnOpenJsonImportTab: 'openJsonImportTabBtn', btnDoImport: 'importBtn',
   editDrawerTitle: 'editDrawerTitle', editLabelIssuer: 'labelIssuer', editLabelAccount: 'labelAccount', btnSaveEdit: 'editSaveBtn',
-  settingDrawerTitle: 'settingDrawerTitle', settingSecurityTitle: 'settingSecurityTitle', settingPermissionTitle: 'settingPermissionTitle',
+  settingDrawerTitle: 'settingDrawerTitle', settingSecurityTitle: 'settingSecurityTitle', settingPermissionTitle: 'settingPermissionTitle', settingSiteFilterTitle: 'settingSiteFilterTitle',
+  siteFilterEnabledText: 'siteFilterEnabledText', siteFilterEnabledHint: 'siteFilterEnabledHint',
   settingDebugTitle: 'settingDebugTitle',
   permissionAutofillEnableText: 'permissionAutofillEnableText', permissionAutofillEnableHint: 'permissionAutofillEnableHint',
   permissionRightclickEnableQRScanText: 'permissionRightclickEnableQRScanText', permissionRightclickEnableQRScanHint: 'permissionRightclickEnableQRScanHint',
@@ -328,7 +330,10 @@ function applyStaticTranslations(){
     settingDrawerTitle: 'Settings',
     settingSecurityTitle: 'Sync & Security',
     settingPermissionTitle: 'Permissions',
+    settingSiteFilterTitle: 'Current Website Codes',
     settingDebugTitle: 'Debugging',
+    siteFilterEnabledText: 'Only show codes for the current website',
+    siteFilterEnabledHint: 'Automatically match the current website with each account issuer or custom domain rule.',
     permissionAutofillEnableText: 'Enable autofill feature',
     permissionAutofillEnableHint: 'Automatically inject autofill on matched websites.',
     permissionRightclickEnableQRScanText: 'Enable right-click QR scan option',
@@ -908,19 +913,39 @@ function siteFilterPatternMatches(hostname, pattern){
   }
   return host === rule;
 }
+const SERVICE_HOST_ALIASES = {
+  github:['github'], google:['google'], cloudflare:['cloudflare'], meta:['meta','facebook'],
+  facebook:['facebook'], microsoft:['microsoft','live','outlook'], amazon:['amazon'],
+  apple:['apple','icloud'], discord:['discord'], dropbox:['dropbox'], paypal:['paypal'],
+  twitter:['twitter','x.com'], x:['x.com','twitter'], linkedin:['linkedin'], reddit:['reddit'],
+  steam:['steampowered','steamcommunity'], twitch:['twitch'], yahoo:['yahoo'],
+  proton:['proton','protonmail'], bitbucket:['bitbucket'], gitlab:['gitlab']
+};
 function accountMatchesCurrentSite(account){
-  if(!currentSiteHostname || !Array.isArray(account.autofillPatterns)) return false;
-  return account.autofillPatterns.some(pattern => siteFilterPatternMatches(currentSiteHostname, pattern));
+  if(!currentSiteHostname) return false;
+  const patterns = Array.isArray(account.autofillPatterns) ? account.autofillPatterns : [];
+  if(patterns.some(pattern => siteFilterPatternMatches(currentSiteHostname, pattern))) return true;
+  const issuer = String(account.issuer || account.label || '').toLowerCase();
+  const hostParts = currentSiteHostname.split('.');
+  const hostTokens = new Set(hostParts);
+  for(const [service, aliases] of Object.entries(SERVICE_HOST_ALIASES)){
+    if(issuer.includes(service) && aliases.some(alias => hostParts.some(part => part.includes(alias)))) return true;
+  }
+  const normalizedIssuer = issuer.replace(/[^a-z0-9]/g, '');
+  return hostParts.some(part => part.length > 2 && normalizedIssuer.includes(part.replace(/[^a-z0-9]/g, '')));
 }
 async function initSiteFilter(){
   const saved = await browser.storage.local.get('siteFilterEnabled');
-  siteFilterEnabled = !!(saved && saved.siteFilterEnabled);
+  siteFilterEnabled = saved && saved.siteFilterEnabled != null ? !!saved.siteFilterEnabled : true;
   try {
     const tabs = await browser.tabs.query({ active:true, currentWindow:true });
-    const url = String(tabs && tabs[0] && tabs[0].url || '');
+    const tab = tabs && tabs[0];
+    currentSiteTabId = tab && typeof tab.id === 'number' ? tab.id : null;
+    const url = String(tab && tab.url || '');
     if(/^https?:\/\//i.test(url)) currentSiteHostname = new URL(url).hostname.toLowerCase();
   } catch (_) {
     currentSiteHostname = '';
+    currentSiteTabId = null;
   }
   const checkbox = byId('siteFilterEnabled');
   if(checkbox){
@@ -932,6 +957,23 @@ async function initSiteFilter(){
     });
   }
   render();
+}
+async function fillAccountInActiveTab(account){
+  if(!currentSiteTabId) throw new Error(t('noActiveTab'));
+  await browser.scripting.insertCSS({
+    target:{ tabId:currentSiteTabId, allFrames:false },
+    files:['autofill/autofill.css']
+  });
+  await browser.scripting.executeScript({
+    target:{ tabId:currentSiteTabId, allFrames:false },
+    files:['third-party/polyfill.min.js','locales/i18n.js','autofill/autofill-content.js']
+  });
+  const response = await browser.tabs.sendMessage(currentSiteTabId, {
+    action:'fillOtpFromPopup',
+    accountId:String(account.id || '')
+  });
+  if(!response || !response.success) throw new Error((response && response.error) || t('noOtpInput'));
+  return response;
 }
 function render(){
   const list = byId('list');
@@ -1878,9 +1920,17 @@ byId('list').addEventListener('click', async e => {
     const card = codeEl.closest('.card');
     const acc = accounts.find(a => String(a.id) === card.dataset.id);
     if(!acc) return;
-    if(acc.type === 'hotp') await refreshDisplayCodes();
-    const info = getDisplayCode(acc);
-    navigator.clipboard.writeText((info && info.code) || '').then(() => toast(t('copied')));
+    if(!guardVaultUnlocked()) return;
+    try {
+      await fillAccountInActiveTab(acc);
+      toast(t('autofillSuccess'));
+    } catch(err) {
+      if(acc.type === 'hotp') await refreshDisplayCodes();
+      const info = getDisplayCode(acc);
+      const code = (info && info.code) || '';
+      if(code) await navigator.clipboard.writeText(code);
+      toast(code ? t('noOtpInputCopied') : (err.message || t('noOtpInput')));
+    }
   }
 });
 
