@@ -18,6 +18,8 @@ let vaultStatus = { encryptionEnabled:false, unlocked:true, lastUnlockedAt:null 
 let vaultTimerSettings = { autoLockEnabled:false, autoLockMinutes:15 };
 let debugState = { enabled:false };
 let featureSettings = { autofillEnabled:true, rightclickEnabled:true, rightclickAutofillEnabled:true };
+let siteFilterEnabled = false;
+let currentSiteHostname = '';
 let debugUiUnlocked = false;
 let uiLanguage = 'en-US';
 let uiTheme = 'auto';
@@ -896,6 +898,41 @@ async function openQrPreviewTabForAccountId(accountId){
   await sendMessage({ action:'openQrPreviewForAccount', id: accountId });
 }
 
+function siteFilterPatternMatches(hostname, pattern){
+  const host = normalizeAutofillPattern(hostname);
+  const rule = normalizeAutofillPattern(pattern);
+  if(!host || !rule) return false;
+  if(rule.startsWith('*.')){
+    const base = rule.slice(2);
+    return !!base && (host === base || host.endsWith('.' + base));
+  }
+  return host === rule;
+}
+function accountMatchesCurrentSite(account){
+  if(!currentSiteHostname || !Array.isArray(account.autofillPatterns)) return false;
+  return account.autofillPatterns.some(pattern => siteFilterPatternMatches(currentSiteHostname, pattern));
+}
+async function initSiteFilter(){
+  const saved = await browser.storage.local.get('siteFilterEnabled');
+  siteFilterEnabled = !!(saved && saved.siteFilterEnabled);
+  try {
+    const tabs = await browser.tabs.query({ active:true, currentWindow:true });
+    const url = String(tabs && tabs[0] && tabs[0].url || '');
+    if(/^https?:\/\//i.test(url)) currentSiteHostname = new URL(url).hostname.toLowerCase();
+  } catch (_) {
+    currentSiteHostname = '';
+  }
+  const checkbox = byId('siteFilterEnabled');
+  if(checkbox){
+    checkbox.checked = siteFilterEnabled;
+    checkbox.addEventListener('change', async () => {
+      siteFilterEnabled = checkbox.checked;
+      await browser.storage.local.set({ siteFilterEnabled });
+      render();
+    });
+  }
+  render();
+}
 function render(){
   const list = byId('list');
   const empty = byId('empty');
@@ -908,6 +945,7 @@ function render(){
   }
   const q = byId('search').value.toLowerCase().trim();
   visibleAccounts = accounts
+    .filter(a => !siteFilterEnabled || accountMatchesCurrentSite(a))
     .filter(a => (a.issuer||'').toLowerCase().includes(q) || (a.label||'').toLowerCase().includes(q))
     .slice()
     .sort(compareAccountOrder);
@@ -1797,6 +1835,7 @@ byId('btnDoImport').addEventListener('click', async () => {
 });
 
 byId('search').addEventListener('input', render);
+initSiteFilter().catch(err => console.error('[Vault2FA mod] filter init failed', err));
 byId('fIssuer').addEventListener('input', updateDuplicateHint);
 byId('fLabel').addEventListener('input', updateDuplicateHint);
 
