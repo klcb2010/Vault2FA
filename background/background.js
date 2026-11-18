@@ -21,8 +21,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         await setLocalAccounts(accounts);
         await touchVaultActivity();
         await appendDebugInfo('Accounts saved locally', { count: accounts.length });
-        const sync = { skipped: true, reason: 'timer_only' };
-        sendResponse({ success: true, sync, settings: await getSyncSettings() });
+        sendResponse({ success: true, sync: { queued: true }, settings: await getSyncSettings() });
         return;
       }
       case 'getSyncSettings': {
@@ -31,6 +30,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       case 'loginWebdav': {
         const result = await loginWebdav(message.settings || {});
+        sendResponse(result);
+        return;
+      }
+      case 'logoutWebdav': {
+        const result = await logoutWebdav();
         sendResponse(result);
         return;
       }
@@ -47,7 +51,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           intervalMinutes: normalizeSyncIntervalMinutes(incoming.intervalMinutes),
           connected: !!credentials,
         });
-        await scheduleNextSyncAutoUploadAlarm(settings);
         sendResponse({ success: true, settings, upload: { skipped: true } });
         return;
       }
@@ -67,7 +70,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       case 'uploadSyncNow': {
         const upload = await uploadToSync();
-        await scheduleNextSyncAutoUploadAlarm(await getSyncSettings());
         sendResponse({ success: true, upload, settings: await getSyncSettings() });
         return;
       }
@@ -129,7 +131,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const merged = existing.concat(parsed.accounts);
         await setLocalAccounts(merged);
         await touchVaultActivity();
-        const sync = { skipped: true, reason: 'timer_only' };
+        const sync = { queued: true };
         await appendDebugInfo('addAccountsFromQrPayload stored successfully', {
           importedCount: parsed.accounts.length,
           failedCount: parsed.fail,
@@ -399,7 +401,6 @@ if(browser.runtime && browser.runtime.onStartup){
   browser.runtime.onStartup.addListener(() => {
     refreshAutofillInjectionForOpenTabs().catch(() => {});
     scheduleVaultAutoLock().catch(() => {});
-    ensureSyncAutoUploadAlarm().catch(() => {});
   });
 }
 if(browser.contextMenus && browser.contextMenus.onClicked){
@@ -421,19 +422,6 @@ if(browser.alarms && browser.alarms.onAlarm){
       lockVault('auto_timer_expired').catch(() => {});
       return;
     }
-    if(alarm.name === SYNC_AUTO_UPLOAD_ALARM){
-      (async () => {
-        try {
-          await runAutoUploadTick();
-        } catch (err) {
-          await appendDebugInfo('Sync auto upload alarm failed', {
-            error: err && err.message ? err.message : String(err),
-          });
-        } finally {
-          await scheduleNextSyncAutoUploadAlarm();
-        }
-      })().catch(() => {});
-    }
   });
 }
 
@@ -450,6 +438,5 @@ if(browser.storage && browser.storage.onChanged){
   });
 }
 
-ensureSyncAutoUploadAlarm().catch(() => {});
 scheduleVaultAutoLock().catch(() => {});
 refreshAutofillInjectionForOpenTabs().catch(() => {});
