@@ -40,15 +40,13 @@ const POPUP_FALLBACK = {
   "localOnly": "Local only",
   "syncOn": "Sync ON ·",
   "storageModeLabel": "Storage mode:",
-  "storageModeSync": "Local + Firefox Sync upload",
+  "storageModeSync": "本地 + WebDAV 云端同步",
   "storageModeLocal": "Local only",
   "lastUpload": "Last upload:",
   "lastDownload": "Last local overwrite from cloud:",
   "uploadSuccess": "Uploaded local data",
   "syncSaved": "Sync settings saved",
   "syncDisabled": "Sync settings saved",
-  "needSession": "Please enter a sync session ID first.",
-  "needSessionEnable": "Please enter a sync session ID before enabling sync.",
   "noAccountsToExport": "No account to export",
   "copied": "Copied!",
   "addAccount": "Add Account",
@@ -193,8 +191,6 @@ const POPUP_FALLBACK = {
   "popupLoadFailed": "Failed to load popup",
   "migrationAccountsImported": "Account imported from third-party source!",
   "langVersionMismatch": "Language file version mismatches with add-on version",
-  "syncUseEncryptedPayloadText": "Upload encrypted local vault directlly",
-  "syncUseEncryptedPayloadHint": "When local encryption is enabled, upload the encrypted payload to Firefox Sync instead of plaintext data.",
   "confirmCloudEncryptedOverwrite": "The downloaded sync data is encrypted and needs decryption. Overwrite local data with encrypted payload and lock vault now?",
   "downloadedEncryptedCloudData": "Encrypted cloud data downloaded. Vault is locked.",
   "permissionAutofillEnableText": "Enable autofill feature",
@@ -368,14 +364,6 @@ function applyStaticTranslations(){
   byId('search').placeholder = t('searchPlaceholder');
   byId('unlockPassphrase').placeholder = t('unlockPassphrasePlaceholder');
   byId('vaultPassphrase').placeholder = t('vaultPassphrasePlaceholder');
-  const encryptedSyncTextEl = byId('syncUseEncryptedPayloadText');
-  if(encryptedSyncTextEl){
-    encryptedSyncTextEl.textContent = tf('syncUseEncryptedPayloadText', 'Upload encrypted local vault payload directly');
-  }
-  const encryptedSyncHintEl = byId('syncUseEncryptedPayloadHint');
-  if(encryptedSyncHintEl){
-    encryptedSyncHintEl.textContent = tf('syncUseEncryptedPayloadHint', 'When local encryption is enabled, upload encrypted storage payload from this browser instead of plaintext account data.');
-  }
   const secretFormatLabels = {
     base32: 'Base32',
     base64: 'Base64',
