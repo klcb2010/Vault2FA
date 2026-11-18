@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Sync new upstream release while preserving local mods
@@ -63,11 +64,11 @@ jobs:
             git add -A
             if ! git diff --cached --quiet; then
               git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Sync upstream release $upstream_latest with local mods"
-              git push origin HEAD:main
             else
-              echo "Upstream merge produced no additional local file changes."
-              git push origin HEAD:main
+              echo "No file changes were needed after upstream merge."
             fi
+
+            git push origin HEAD:main
           else
             echo "No new upstream release. Continue to local release check."
           fi
@@ -84,7 +85,10 @@ jobs:
           git pull --ff-only origin main
 
           upstream_latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
-          [[ -n "$upstream_latest" ]] || { echo "Cannot determine upstream release tag."; exit 1; }
+          if [[ -z "$upstream_latest" ]]; then
+            echo "Cannot determine upstream release tag."
+            exit 1
+          fi
 
           last_local_tag="$(git tag --list 'v*-klcb.*' --sort=-version:refname | head -n 1)"
           head_sha="$(git rev-parse HEAD)"
@@ -99,18 +103,9 @@ jobs:
 
           next_revision="$(git tag --list "${upstream_latest}-klcb.*" |
             sed -E 's/.*-klcb\.([0-9]+)$/\1/' |
-            grep -E '^[0-9]+
-          next_revision="$((${next_revision:-0} + 1))"
-          release_tag="${upstream_latest}-klcb.${next_revision}"
-
-          echo "Publishing local changes: $release_tag"
-          gh release create "$release_tag" \
-            --target "$head_sha" \
-            --title "Vault2FA $release_tag" \
-            --generate-notes
- |
+            grep -E '^[0-9]+$' |
             sort -n | tail -n 1 || true)"
-          next_revision="$((${next_revision:-0} + 1))"
+          next_revision="$(("${next_revision:-0}" + 1))"
           release_tag="${upstream_latest}-klcb.${next_revision}"
 
           echo "Publishing local changes: $release_tag"
