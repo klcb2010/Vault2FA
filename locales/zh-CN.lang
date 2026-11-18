@@ -33,16 +33,14 @@ vaultLocked=保险库已锁定
 vaultLockSub=本地保险库已加密，请输入口令以解锁当前浏览器会话
 unlockVault=解锁保险库
 searchPlaceholder=搜索账号...
-syncEnabledHint=默认仅本地保存。开启自动上传后，本地改动会按设定间隔上传至浏览器提供的同步功能
-syncEnableText=启用同步上传
-syncSessionLabel=同步会话 ID
-syncSessionHint=每个会话 ID 相互隔离。不同同步组请使用不同 ID
+syncEnabledHint=仅上传加密后的保险库数据。请先开启本地保险库加密并登录 WebDAV
+syncEnableText=启用 WebDAV 自动同步
 syncIntervalLabel=自动上传间隔（分钟）
-syncIntervalHint=开启自动上传后，本地更改最短按该间隔上传一次
+syncIntervalHint=开启自动同步后，按设定间隔上传加密保险库
 syncSaveBtn=保存同步设置
-syncUploadBtn=立即上传本地数据
-syncDownloadBtn=下载云端数据到本地
-syncWarnOverwrite=从云端下载会覆盖当前本地账号
+syncUploadBtn=立即上传
+syncDownloadBtn=立即下载
+syncWarnOverwrite=下载将覆盖本地加密保险库
 addDrawerTitle=添加账号
 tabManual=手动录入
 tabQr=扫描二维码
@@ -166,8 +164,6 @@ vaultLockedToast=保险库已锁定
 popupLoadFailed=弹窗加载失败
 migrationAccountsImported=已导入第三方账号数据
 langVersionMismatch=语言文件版本与插件版本不一致
-syncUseEncryptedPayloadText=上传加密后的保险库
-syncUseEncryptedPayloadHint=在开启本地保险库加密后，将加密后内容上传至云端，而非明文上传
 confirmCloudEncryptedOverwrite=下载的云端数据是加密过的保险库，确认下载、覆盖并锁定保险库吗？
 downloadedEncryptedCloudData=已下载云端加密数据并锁定保险库
 permissionAutofillEnableText=启用自动填充
@@ -207,6 +203,12 @@ migrationAccountsAdded=已由第三方源添加账号！
 [qr-previewer]
 showQrCodeLibraryError=二维码生成库加载失败
 showQrCodeGenerateError=二维码生成失败
+
+webdavUrlLabel=WebDAV 服务器地址
+webdavUsernameLabel=用户名
+webdavPasswordLabel=密码
+webdavLoginBtn=登录
+webdavLoginSuccess=WebDAV 登录成功
 
 [json-import]
 title=Vault <em>2FA</em> — JSON 导入
