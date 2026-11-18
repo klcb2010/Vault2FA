@@ -6,6 +6,7 @@ let accounts = [];
 let visibleAccounts = [];
 let activeTab = 'manual';
 let globalTick = null;
+let pendingWebdavSyncEnable = false;
 let syncSettings = {
   enabled:false,
   intervalMinutes:5,
@@ -62,6 +63,7 @@ const POPUP_FALLBACK = {
   "unlockVault": "Unlock Vault",
   "searchPlaceholder": "Search accounts...",
   "syncEnabledHint": "Only encrypted vault data is uploaded. Enable local vault encryption and log in to WebDAV first.",
+  "syncNeedsEncryption": "Set a vault passphrase below and click Apply Security Setting. WebDAV sync will be enabled after local encryption is applied.",
   "syncNeedsEncryption": "Set a vault passphrase below and click Apply Security Setting. WebDAV sync will be enabled after local encryption is applied.",
   "syncDirectionHint": "Automatic sync uploads local changes to the cloud, including deletions. It is a backup, not an undelete or recovery feature.",
   "syncUploadHint": "Upload Now replaces the cloud backup with the current local vault.",
@@ -1256,7 +1258,7 @@ function updateSyncUi(){
   byId('autofillEnabled').checked = featureSettings.autofillEnabled !== false;
   byId('rightclickEnabled').checked = featureSettings.rightclickEnabled !== false;
   byId('rightclickAutofillEnabled').checked = featureSettings.rightclickAutofillEnabled !== false;
-  byId('syncEnabled').checked = !!syncSettings.enabled;
+  byId('syncEnabled').checked = !!syncSettings.enabled || pendingWebdavSyncEnable;
   const urlField = byId('webdavUrl');
   const usernameField = byId('webdavUsername');
   const passwordField = byId('webdavPassword');
@@ -2040,13 +2042,14 @@ byId('btnLoginWebdav').addEventListener('click', async () => {
   } catch(err){ errEl.textContent = err.message; errEl.style.display = 'block'; }
 });
 
-async function persistWebdavSyncSettings(){
+async function persistWebdavSyncSettings(enabledOverride){
   const errEl = byId('syncErr');
   errEl.style.display = 'none';
-  const enabled = byId('syncEnabled').checked;
+  const enabled = typeof enabledOverride === 'boolean' ? enabledOverride : byId('syncEnabled').checked;
   try {
     const resp = await sendMessage({ action:'saveSyncSettings', settings:{ enabled } });
     syncSettings = Object.assign({}, syncSettings, resp.settings || {});
+    if(enabled) pendingWebdavSyncEnable = false;
     updateSyncUi();
     return true;
   } catch(err){
@@ -2062,11 +2065,24 @@ byId('syncEnabled').addEventListener('change', async () => {
     updateSyncUi();
     return;
   }
-  // WebDAV sync only uploads encrypted vault data; guide users to enable encryption first.
-  if(byId('syncEnabled').checked && !vaultStatus.encryptionEnabled){
-    byId('vaultEncryptionEnabled').checked = true;
+  if(!byId('syncEnabled').checked){
+    pendingWebdavSyncEnable = false;
+    updateSyncUi();
+    await persistWebdavSyncSettings(false);
+    return;
   }
-  await persistWebdavSyncSettings();
+  // Encryption is mandatory for WebDAV sync. Keep sync disabled until the vault is encrypted.
+  if(!vaultStatus.encryptionEnabled){
+    pendingWebdavSyncEnable = true;
+    byId('vaultEncryptionEnabled').checked = true;
+    updateSyncUi();
+    const passphraseField = byId('vaultPassphrase');
+    passphraseField.scrollIntoView({ behavior:'smooth', block:'center' });
+    passphraseField.focus();
+    toast(tf('syncNeedsEncryption', 'Set a vault passphrase below, then click Apply Security Setting to enable WebDAV sync.'));
+    return;
+  }
+  await persistWebdavSyncSettings(true);
 });
 
 byId('btnLogoutWebdav').addEventListener('click', async () => {
@@ -2151,6 +2167,11 @@ byId('btnApplyVault').addEventListener('click', async () => {
     } else if(wantEncrypt && vaultStatus.encryptionEnabled && !vaultStatus.unlocked){
       await sendMessage({ action:'unlockVault', passphrase });
       toast(t('vaultUnlockedToast'));
+    }
+    await refreshVaultStatus();
+    if(pendingWebdavSyncEnable && vaultStatus.encryptionEnabled){
+      const syncEnabled = await persistWebdavSyncSettings(true);
+      if(!syncEnabled) throw new Error(byId('syncErr').textContent || 'Failed to enable WebDAV sync.');
     }
     const timerChanged = (autoLockEnabled !== !!vaultTimerSettings.autoLockEnabled)
       || (autoLockMinutes !== Math.max(1, parseInt(vaultTimerSettings.autoLockMinutes, 10) || 15));
