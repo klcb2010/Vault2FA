@@ -332,7 +332,9 @@ function applyStaticTranslations(){
     settingPermissionTitle: 'Permissions',
     settingSiteFilterTitle: 'Current Website Codes',
     settingDebugTitle: 'Debugging',
-    siteFilterEnabledText: 'Only show codes for the current website',
+    siteFilterEnabledText: 'Only current website codes',
+    noWebsiteMatchTitle: 'No codes match this website',
+    noWebsiteMatchSub: 'Sites with saved codes: {sites}',
     siteFilterEnabledHint: 'Automatically match the current website with each account issuer or custom domain rule.',
     permissionAutofillEnableText: 'Enable autofill feature',
     permissionAutofillEnableHint: 'Automatically inject autofill on matched websites.',
@@ -996,6 +998,18 @@ function render(){
     .slice()
     .sort(compareAccountOrder);
   empty.style.display = visibleAccounts.length ? 'none' : 'flex';
+  const emptyTitle = byId('emptyTitle');
+  const emptySub = byId('emptySub');
+  if(siteFilterEnabled && accounts.length && !visibleAccounts.length && !q){
+    const siteNames = [...new Set(accounts.map(a => String(a.issuer || a.label || '').trim()).filter(Boolean))];
+    const shownSites = siteNames.slice(0, 5);
+    const siteSummary = shownSites.join('、') + (siteNames.length > shownSites.length ? ' 等' : '');
+    emptyTitle.textContent = t('noWebsiteMatchTitle');
+    emptySub.textContent = tFmt('noWebsiteMatchSub', { sites: siteSummary || '—' });
+  } else {
+    emptyTitle.textContent = t('noAccountsYet');
+    setMultilineText(emptySub, t('emptySub'));
+  }
   const frag = document.createDocumentFragment();
   for(const acc of visibleAccounts) frag.appendChild(buildCard(acc));
   list.replaceChildren(empty, frag);
