@@ -161,7 +161,7 @@ patch("popup/popup.html",
       </button>
       <button class="settings-menu-item" type="button" data-settings-section="permission">''')
 patch("popup/popup.html",
-    '    <div class="settings-section" data-settings-panel="permission">\\n',
+    '    <div class="settings-section" data-settings-panel="permission">\n',
     '''    <div class="settings-section" data-settings-panel="site-filter">
     <div class="fg sync-toggle-row">
       <label class="toggle-wrap">
