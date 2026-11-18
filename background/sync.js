@@ -14,15 +14,18 @@ const defaultSyncSettings = {
 
 let webdavUploadDebounceTimer = null;
 let webdavUploadInProgress = false;
+let webdavUploadPending = false;
 
 async function scheduleWebdavUploadAfterLocalChange(){
   const settings = await getSyncSettings();
   if(!settings.enabled || !settings.connected) return;
+  webdavUploadPending = true;
   if(webdavUploadDebounceTimer) clearTimeout(webdavUploadDebounceTimer);
   webdavUploadDebounceTimer = setTimeout(async () => {
     webdavUploadDebounceTimer = null;
     if(webdavUploadInProgress) return;
     webdavUploadInProgress = true;
+    webdavUploadPending = false;
     try {
       await uploadToSync();
     } catch(err) {
@@ -31,6 +34,7 @@ async function scheduleWebdavUploadAfterLocalChange(){
       });
     } finally {
       webdavUploadInProgress = false;
+      if(webdavUploadPending) scheduleWebdavUploadAfterLocalChange().catch(() => {});
     }
   }, 900);
 }
