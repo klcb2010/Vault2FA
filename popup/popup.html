@@ -276,7 +276,7 @@
     </div>
     <div class="settings-section" data-settings-panel="security">
     <div class="fg">
-      <label class="fl" id="labelWebdavUrl">WebDAV 服务器地址</label>
+      <label class="fl" id="labelWebdavUrl">服务器地址</label>
       <input class="fi mono" id="webdavUrl" type="url" placeholder="https://dav.example.com/remote.php/dav/files/user/" autocomplete="url" />
     </div>
     <div class="fg">
@@ -287,8 +287,9 @@
       <label class="fl" id="labelWebdavPassword">密码</label>
       <input class="fi" id="webdavPassword" type="password" autocomplete="current-password" />
     </div>
-    <div class="sync-actions">
-      <button class="btn-secondary" id="btnLoginWebdav">登录</button>
+    <div class="sync-actions webdav-auth-actions">
+      <button class="btn-secondary" id="btnLoginWebdav">现在登录</button>
+      <button class="btn-danger" id="btnLogoutWebdav" style="display:none">退出登录</button>
     </div>
     <div class="fg sync-toggle-row">
       <label class="toggle-wrap">
@@ -303,7 +304,7 @@
       <div class="fhint" id="syncIntervalHint">开启自动同步后，按设定间隔上传加密保险库。</div>
     </div>
     <div class="sync-actions">
-      <button class="btn-secondary" id="btnSaveSync">保存同步设置</button>
+       
       <button class="btn-secondary" id="btnUploadSync">立即上传</button>
       <button class="btn-danger" id="btnDownloadSync">立即下载</button>
     </div>
