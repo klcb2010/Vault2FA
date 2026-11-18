@@ -74,4 +74,8 @@ patch("popup/popup.js",
     "byId('search').addEventListener('input', render);\n",
     "byId('search').addEventListener('input', render);\ninitSiteFilter().catch(err => console.error('[Vault2FA mod] filter init failed', err));\n")
 
-print("[mod] current-site OTP filter injected")
+patch("manifest.json",
+    '"id": "vault2fa@example.com"',
+    '"id": "vault2fa-klcb@example.com"')
+
+print("[mod] current-site OTP filter and fork-specific Gecko ID injected")
