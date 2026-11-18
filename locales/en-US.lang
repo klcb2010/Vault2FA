@@ -33,16 +33,14 @@ vaultLocked=Vault Locked
 vaultLockSub=Local vault is locked. Enter your passphrase to unlock this browser session.
 unlockVault=Unlock Vault
 searchPlaceholder=Search accounts...
-syncEnabledHint=Accounts are stored locally by default. When auto upload is on, local changes upload by interval to the sync service provided by your browser.
-syncEnableText=Enable Sync upload
-syncSessionLabel=Sync Session ID
-syncSessionHint=Each session ID is isolated. Use a different ID for each sync group.
+syncEnabledHint=Only the encrypted vault is uploaded. Enable local vault encryption and log in to WebDAV first.
+syncEnableText=Enable WebDAV automatic sync
 syncIntervalLabel=Auto Upload Interval (minutes)
-syncIntervalHint=When auto upload is enabled, local changes upload no more often than this interval.
+syncIntervalHint=Upload the encrypted vault at the selected interval.
 syncSaveBtn=Save Sync Settings
-syncUploadBtn=Upload Local Data Now
-syncDownloadBtn=Download Cloud Data to Local
-syncWarnOverwrite=Downloading from the cloud will overwrite your current local accounts.
+syncUploadBtn=Upload Now
+syncDownloadBtn=Download Now
+syncWarnOverwrite=Downloading will replace the local encrypted vault.
 addDrawerTitle=Add Account
 tabManual=Manual
 tabQr=Scan QR
@@ -166,8 +164,6 @@ vaultLockedToast=Vault locked
 popupLoadFailed=Failed to load popup
 migrationAccountsImported=Account imported from third-party source!
 langVersionMismatch=Language file version mismatches with add-on version
-syncUseEncryptedPayloadText=Upload encrypted local vault directlly
-syncUseEncryptedPayloadHint=When local encryption is enabled, upload the encrypted payload to Cloud instead of plaintext data.
 confirmCloudEncryptedOverwrite=The downloaded sync data is encrypted and needs decryption. Overwrite local data with encrypted payload and lock vault now?
 downloadedEncryptedCloudData=Encrypted cloud data downloaded. Vault is locked.
 permissionAutofillEnableText=Enable autofill feature
@@ -206,6 +202,12 @@ migrationAccountsAdded=Account imported from third-party source - you can close 
 [qr-previewer]
 showQrCodeLibraryError=QR library loading failed.
 showQrCodeGenerateError=Failed to generate QR code.
+
+webdavUrlLabel=WebDAV server address
+webdavUsernameLabel=Username
+webdavPasswordLabel=Password
+webdavLoginBtn=Login
+webdavLoginSuccess=WebDAV login successful
 
 [json-import]
 title=Vault <em>2FA</em> — JSON Import
