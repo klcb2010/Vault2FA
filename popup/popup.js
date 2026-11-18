@@ -1929,7 +1929,7 @@ byId('list').addEventListener('click', async e => {
       const info = getDisplayCode(acc);
       const code = (info && info.code) || '';
       if(code) await navigator.clipboard.writeText(code);
-      toast(code ? t('noOtpInputCopied') : (err.message || t('noOtpInput')));
+      toast(code ? t('noOtpInputCopied') : (err.message === 'NO_OTP_INPUT' ? t('noOtpInput') : (err.message || t('noOtpInput'))));
     }
   }
 });
