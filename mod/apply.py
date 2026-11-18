@@ -13,6 +13,44 @@ def patch(relative, old, new):
         raise SystemExit(f"[mod] anchor mismatch in {relative}: {count}")
     path.write_text(source.replace(old, new, 1), encoding="utf-8")
 
+# Footer sync badge, extension version link, and locked-pill placement.
+patch("popup/popup.html",
+    '<div class="sync-badge" id="syncBadge"><div class="sync-dot" id="syncDot"></div><span id="syncBadgeText">Local only</span></div>',
+    '<div class="sync-badge" id="syncBadge"><span id="syncBadgeText">Local only</span><span class="sync-version-label" id="permissionVersionLabel">版本：</span><a class="sync-version-link" id="permissionVersionLink" href="https://addons.mozilla.org/zh-CN/developers/addon/2d26ddb08f7841948d04/versions" target="_blank" rel="noopener noreferrer"></a></div>')
+patch("popup/popup.js",
+    "function applyStaticTranslations(){",
+    """function applyStaticTranslations(){
+  const versionLabel = byId('permissionVersionLabel');
+  const versionLink = byId('permissionVersionLink');
+  if(versionLabel) versionLabel.textContent = tf('permissionVersionLabel', '版本：');
+  if(versionLink){
+    let version = popupVersion;
+    try {
+      const manifest = browser.runtime.getManifest && browser.runtime.getManifest();
+      version = String((manifest && manifest.version) || version || '');
+    } catch (_) {}
+    versionLink.textContent = version;
+    versionLink.title = tf('permissionVersionLinkTitle', '查看扩展版本');
+  }""")
+patch("locales/zh-CN.lang",
+    "permissionSaveBtn=保存权限设置",
+    "permissionSaveBtn=保存权限设置\\npermissionVersionLabel=版本：")
+patch("popup/popup.css",
+    ".sync-badge { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--green); }",
+    ".sync-badge { display:flex; align-items:center; gap:4px; padding:6px 13px; border-radius:var(--rs); background:var(--accent); color:#000; font-family:inherit; font-size:12px; font-weight:600; white-space:nowrap; }")
+patch("popup/popup.css",
+    ".sync-badge.offline { color: var(--muted); }\\n.sync-badge.offline .sync-dot { background: var(--muted); }\\n.sync-badge.syncing { color: var(--accent); }\\n.sync-badge.syncing .sync-dot { background: var(--accent); }",
+    ".sync-badge.offline,\\n.sync-badge.syncing { color:#000; }\\n.sync-badge.offline .sync-dot,\\n.sync-badge.syncing .sync-dot { background:#000; }")
+patch("popup/popup.css",
+    ".vault-pill { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%);",
+    ".vault-pill { position:absolute; left:calc(50% + 58px); top:50%; transform:translate(-50%, -50%);")
+patch("popup/popup.css",
+    ".sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }",
+    """.sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }
+.sync-version-label { margin-left:6px; color:inherit; font:inherit; white-space:nowrap; }
+.sync-version-link { color:inherit; font:inherit; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
+.sync-version-link:hover { opacity:.8; }""")
+
 # Firefox fork identity and Chinese first-run language.
 patch("manifest.json",
     '"id": "vault2fa@example.com"',
