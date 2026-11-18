@@ -8,11 +8,10 @@ let activeTab = 'manual';
 let globalTick = null;
 let syncSettings = {
   enabled:false,
-  sessionId:'',
   intervalMinutes:5,
   lastUploadedAt:null,
   lastDownloadedAt:null,
-  useEncryptedPayload:false,
+  connected:false,
 };
 let vaultStatus = { encryptionEnabled:false, unlocked:true, lastUnlockedAt:null };
 let vaultTimerSettings = { autoLockEnabled:false, autoLockMinutes:15 };
@@ -64,16 +63,18 @@ const POPUP_FALLBACK = {
   "vaultLockSub": "Local vault is locked. Enter your passphrase to unlock this browser session.",
   "unlockVault": "Unlock Vault",
   "searchPlaceholder": "Search accounts...",
-  "syncEnabledHint": "Accounts are stored locally by default. When auto upload is on, local changes upload by interval to the session ID below.",
-  "syncEnableText": "Enable Firefox Sync upload",
-  "syncSessionLabel": "Sync Session ID",
-  "syncSessionHint": "Each session ID is isolated. Use a different ID for each sync group.",
+  "syncEnabledHint": "Only the encrypted vault is uploaded. Enable local vault encryption and log in to WebDAV first.",
+  "syncEnableText": "Enable WebDAV automatic sync",
   "syncIntervalLabel": "Auto Upload Interval (minutes)",
-  "syncIntervalHint": "When auto upload is enabled, local changes upload no more often than this interval.",
+  "syncIntervalHint": "Upload the encrypted vault at the selected interval.",
   "syncSaveBtn": "Save Sync Settings",
-  "syncUploadBtn": "Upload Local Data Now",
-  "syncDownloadBtn": "Download Cloud Data to Local",
-  "syncWarnOverwrite": "Downloading from the cloud will overwrite your current local accounts.",
+  "syncUploadBtn": "Upload Now",
+  "syncDownloadBtn": "Download Now",
+  "syncWarnOverwrite": "Downloading will replace the local encrypted vault.",
+  "webdavUrlLabel": "WebDAV server address",
+  "webdavUsernameLabel": "Username",
+  "webdavPasswordLabel": "Password",
+  "webdavLoginBtn": "Login",
   "addDrawerTitle": "Add Account",
   "tabManual": "Manual",
   "tabQr": "Scan QR",
@@ -251,7 +252,7 @@ const STATIC_TEXT_MAP = {
   permissionRightclickEnableQRScanText: 'permissionRightclickEnableQRScanText', permissionRightclickEnableQRScanHint: 'permissionRightclickEnableQRScanHint',
   permissionRightclickEnableAutofillText: 'permissionRightclickEnableAutofillText', permissionRightclickEnableAutofillHint: 'permissionRightclickEnableAutofillHint',
   btnSavePermission: 'permissionSaveBtn',
-  syncEnableText: 'syncEnableText', syncEnabledHint: 'syncEnabledHint', labelSyncSession: 'syncSessionLabel', syncSessionHint: 'syncSessionHint',
+  syncEnableText: 'syncEnableText', syncEnabledHint: 'syncEnabledHint', labelWebdavUrl: 'webdavUrlLabel', labelWebdavUsername: 'webdavUsernameLabel', labelWebdavPassword: 'webdavPasswordLabel', btnLoginWebdav: 'webdavLoginBtn',
   labelSyncInterval: 'syncIntervalLabel', syncIntervalHint: 'syncIntervalHint', btnSaveSync: 'syncSaveBtn', btnUploadSync: 'syncUploadBtn',
   btnDownloadSync: 'syncDownloadBtn', syncWarnOverwrite: 'syncWarnOverwrite', vaultEnableText: 'vaultEnableText',
   vaultEnableHint: 'vaultEnableHint', labelVaultPassphrase: 'labelVaultPassphrase',
@@ -1264,15 +1265,11 @@ function updateSyncUi(){
   byId('rightclickEnabled').checked = featureSettings.rightclickEnabled !== false;
   byId('rightclickAutofillEnabled').checked = featureSettings.rightclickAutofillEnabled !== false;
   byId('syncEnabled').checked = !!syncSettings.enabled;
-  byId('syncSessionId').value = syncSettings.sessionId || '';
   byId('syncInterval').value = syncSettings.intervalMinutes || 5;
-  byId('syncUseEncryptedPayload').checked = !!syncSettings.useEncryptedPayload;
-  const encryptedUploadRow = byId('syncEncryptedUploadRow');
-  if(encryptedUploadRow){
-    encryptedUploadRow.style.display = vaultStatus.encryptionEnabled ? 'block' : 'none';
-  }
+  const urlField = byId('webdavUrl');
+  if(urlField && syncSettings.url) urlField.value = syncSettings.url;
   const meta = [
-    t('storageModeLabel') + (syncSettings.enabled && syncSettings.sessionId ? t('storageModeSync') : t('storageModeLocal')),
+    t('storageModeLabel') + (syncSettings.enabled && syncSettings.connected ? t('storageModeSync') : t('storageModeLocal')),
     t('lastUpload') + fmtTs(syncSettings.lastUploadedAt),
     t('lastDownload') + fmtTs(syncSettings.lastDownloadedAt),
   ];
@@ -1281,9 +1278,9 @@ function updateSyncUi(){
   const badge = byId('syncBadge');
   const text = byId('syncBadgeText');
   badge.classList.remove('offline', 'syncing');
-  if(syncSettings.enabled && syncSettings.sessionId){
+  if(syncSettings.enabled && syncSettings.connected){
     badge.classList.add('syncing');
-    text.textContent = t('syncOn') + syncSettings.sessionId;
+    text.textContent = t('syncOn');
   } else {
     badge.classList.add('offline');
     text.textContent = t('localOnly');
@@ -2014,17 +2011,29 @@ byId('btnSaveEdit').addEventListener('click', async () => {
   }
 });
 
+byId('btnLoginWebdav').addEventListener('click', async () => {
+  const errEl = byId('syncErr'); errEl.style.display = 'none';
+  try {
+    const resp = await sendMessage({ action:'loginWebdav', settings:{
+      url: byId('webdavUrl').value.trim(),
+      username: byId('webdavUsername').value.trim(),
+      password: byId('webdavPassword').value
+    }});
+    syncSettings = Object.assign({}, syncSettings, resp.settings || {}, { url: resp.url, connected: true });
+    byId('webdavPassword').value = '';
+    updateSyncUi();
+    toast(tf('webdavLoginSuccess', 'WebDAV 登录成功'));
+  } catch(err){ errEl.textContent = err.message; errEl.style.display = 'block'; }
+});
+
 byId('btnSaveSync').addEventListener('click', async () => {
   if(!guardVaultUnlocked()) return;
   const errEl = byId('syncErr');
   errEl.style.display = 'none';
   const enabled = byId('syncEnabled').checked;
-  const sessionId = byId('syncSessionId').value.trim();
   const intervalMinutes = Math.max(1, parseInt(byId('syncInterval').value, 10) || 5);
-  const useEncryptedPayload = byId('syncUseEncryptedPayload').checked;
-  if(enabled && !sessionId){ errEl.textContent = t('needSessionEnable'); errEl.style.display = 'block'; return; }
   try {
-    const resp = await sendMessage({ action:'saveSyncSettings', settings:{ enabled, sessionId, intervalMinutes, useEncryptedPayload } });
+    const resp = await sendMessage({ action:'saveSyncSettings', settings:{ enabled, intervalMinutes } });
     syncSettings = resp.settings || syncSettings;
     updateSyncUi();
     updateSyncBadgeFromResponse(resp);
@@ -2054,9 +2063,7 @@ byId('btnUploadSync').addEventListener('click', async () => {
   if(!guardVaultUnlocked()) return;
   const errEl = byId('syncErr'); errEl.style.display = 'none';
   try {
-    const sessionId = byId('syncSessionId').value.trim();
-    if(!sessionId){ errEl.textContent = t('needSession'); errEl.style.display = 'block'; return; }
-    const resp = await sendMessage({ action:'uploadSyncNow', sessionId, useEncryptedPayload: byId('syncUseEncryptedPayload').checked });
+    const resp = await sendMessage({ action:'uploadSyncNow' });
     syncSettings.lastUploadedAt = resp.upload && resp.upload.updatedAt ? resp.upload.updatedAt : Date.now();
     updateSyncUi(); updateSyncBadgeFromResponse(resp); toast(t('uploadSuccess'));
   } catch(err){ errEl.textContent = err.message; errEl.style.display = 'block'; }
@@ -2065,15 +2072,13 @@ byId('btnUploadSync').addEventListener('click', async () => {
 byId('btnDownloadSync').addEventListener('click', async () => {
   if(!guardVaultUnlocked()) return;
   const errEl = byId('syncErr'); errEl.style.display = 'none';
-  const sessionId = byId('syncSessionId').value.trim();
-  if(!sessionId){ errEl.textContent = t('needSession'); errEl.style.display = 'block'; return; }
   if(!window.confirm(t('confirmCloudOverwrite'))) return;
   try {
-    const preview = await sendMessage({ action:'downloadSyncToLocal', sessionId, dryRun:true });
+    const preview = await sendMessage({ action:'downloadSyncToLocal', dryRun:true });
     const hasEncryptedHeader = !!(preview && preview.containsEncryptedHeader);
     const encryptedConfirmText = tf('confirmCloudEncryptedOverwrite', 'Downloaded cloud data contains an encrypted vault payload. Overwrite local data with encrypted payload and lock vault now?');
     if(hasEncryptedHeader && !window.confirm(encryptedConfirmText)) return;
-    const resp = await sendMessage({ action:'downloadSyncToLocal', sessionId, allowEncrypted: hasEncryptedHeader });
+    const resp = await sendMessage({ action:'downloadSyncToLocal', allowEncrypted: hasEncryptedHeader });
     syncSettings.lastDownloadedAt = Date.now();
     if(resp && resp.appliedEncryptedPayload){
       await refreshVaultStatus();
