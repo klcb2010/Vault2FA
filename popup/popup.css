@@ -292,6 +292,8 @@ html, body {
   object-fit:contain;
 }
 .settings-menu-label { flex:1; min-width:0; font-weight:600; }
+.site-filter-menu-item { cursor:pointer; }
+.site-filter-menu-toggle { width:18px; height:18px; flex-shrink:0; accent-color:var(--accent); cursor:pointer; }
 .settings-menu-chevron {
   width:1.428571rem; height:1.428571rem; flex-shrink:0;
   object-fit:contain;
