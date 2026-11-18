@@ -1391,7 +1391,7 @@ async function boot(){
   uiTheme = prefs.uiTheme || 'auto';
   await loadAvailableLanguages();
   await loadAccountSettings();
-  const fallbackLocale = availableLanguages[0] ? availableLanguages[0].localeId : DEFAULT_LOCALE_ID;
+  const fallbackLocale = DEFAULT_LOCALE_ID;
   await setLanguage(resolveLocaleId(prefs.uiLanguage || fallbackLocale));
   applyTheme();
   
