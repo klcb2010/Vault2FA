@@ -4,7 +4,7 @@
 (() => {
   const cache = new Map();
   let localeIndexPromise = null;
-  const DEFAULT_LOCALE_ID = 'en-US';
+  const DEFAULT_LOCALE_ID = 'zh-CN';
 
   function normalizeLanguage(value){
     return String(value || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
@@ -112,11 +112,6 @@
     try {
       const result = await browser.storage.local.get('uiLanguage');
       if(result && result.uiLanguage) return localeIdFromLanguage(result.uiLanguage);
-    } catch (_) {}
-    try {
-      if(browser.i18n && typeof browser.i18n.getUILanguage === 'function'){
-        return localeIdFromLanguage(browser.i18n.getUILanguage());
-      }
     } catch (_) {}
     return DEFAULT_LOCALE_ID;
   }
