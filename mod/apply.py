@@ -142,7 +142,7 @@ new_click = """  const codeEl = e.target.closest('.otp-code');
       const info = getDisplayCode(acc);
       const code = (info && info.code) || '';
       if(code) await navigator.clipboard.writeText(code);
-      toast(code ? t('noOtpInputCopied') : (err.message || t('noOtpInput')));
+      toast(code ? t('noOtpInputCopied') : (err.message === 'NO_OTP_INPUT' ? t('noOtpInput') : (err.message || t('noOtpInput'))));
     }
   }"""
 patch("popup/popup.js", old_click, new_click)
