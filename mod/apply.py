@@ -110,6 +110,22 @@ async function fillAccountInActiveTab(account){
 """
 patch("popup/popup.js", "function render(){\n", site_filter + "function render(){\n")
 patch("popup/popup.js",
+    "  empty.style.display = visibleAccounts.length ? 'none' : 'flex';\n  const frag = document.createDocumentFragment();",
+    `  empty.style.display = visibleAccounts.length ? 'none' : 'flex';
+  const emptyTitle = byId('emptyTitle');
+  const emptySub = byId('emptySub');
+  if(siteFilterEnabled && accounts.length && !visibleAccounts.length && !q){
+    const siteNames = [...new Set(accounts.map(a => String(a.issuer || a.label || '').trim()).filter(Boolean))];
+    const shownSites = siteNames.slice(0, 5);
+    const siteSummary = shownSites.join('、') + (siteNames.length > shownSites.length ? ' 等' : '');
+    emptyTitle.textContent = t('noWebsiteMatchTitle');
+    emptySub.textContent = tFmt('noWebsiteMatchSub', { sites: siteSummary || '—' });
+  } else {
+    emptyTitle.textContent = t('noAccountsYet');
+    setMultilineText(emptySub, t('emptySub'));
+  }
+  const frag = document.createDocumentFragment();`)
+patch("popup/popup.js",
     "  visibleAccounts = accounts\n    .filter(a => (a.issuer||'').toLowerCase().includes(q) || (a.label||'').toLowerCase().includes(q))",
     "  visibleAccounts = accounts\n    .filter(a => !siteFilterEnabled || accountMatchesCurrentSite(a))\n    .filter(a => (a.issuer||'').toLowerCase().includes(q) || (a.label||'').toLowerCase().includes(q))")
 patch("popup/popup.js",
@@ -121,7 +137,7 @@ patch("popup/popup.js",
     "  settingDrawerTitle: 'settingDrawerTitle', settingSecurityTitle: 'settingSecurityTitle', settingPermissionTitle: 'settingPermissionTitle', settingSiteFilterTitle: 'settingSiteFilterTitle',\n  siteFilterEnabledText: 'siteFilterEnabledText', siteFilterEnabledHint: 'siteFilterEnabledHint',")
 patch("popup/popup.js",
     "    settingPermissionTitle: 'Permissions',",
-    "    settingPermissionTitle: 'Permissions',\n    settingSiteFilterTitle: 'Current Website Codes',\n    siteFilterEnabledText: 'Only show codes for the current website',\n    siteFilterEnabledHint: 'Match accounts automatically using the current website and issuer or custom domain rules.',")
+    "    settingPermissionTitle: 'Permissions',\n    settingSiteFilterTitle: 'Current Website Codes',\n    siteFilterEnabledText: 'Only current website codes',\n    noWebsiteMatchTitle: 'No codes match this website',\n    noWebsiteMatchSub: 'Sites with saved codes: {sites}',")
 
 old_click = """  const codeEl = e.target.closest('.otp-code');
   if(codeEl){
@@ -155,7 +171,6 @@ patch("popup/popup.js", old_click, new_click)
 patch("popup/popup.html",
     '      <button class="settings-menu-item" type="button" data-settings-section="permission">',
     '''      <button class="settings-menu-item" type="button" data-settings-section="site-filter">
-        <span class="settings-menu-logo" aria-hidden="true">🌐</span>
         <span class="settings-menu-label" id="settingSiteFilterTitle">当前网站验证码</span>
         <img class="settings-menu-chevron" src="../icons/enter.svg" alt="" aria-hidden="true" />
       </button>
@@ -166,7 +181,7 @@ patch("popup/popup.html",
     <div class="fg sync-toggle-row">
       <label class="toggle-wrap">
         <input type="checkbox" id="siteFilterEnabled" />
-        <span id="siteFilterEnabledText">仅显示当前网站匹配的验证码</span>
+        <span id="siteFilterEnabledText">仅当前网站验证码</span>
       </label>
       <div class="fhint" id="siteFilterEnabledHint">根据当前网站自动匹配账号发行方或自定义域名规则。</div>
     </div>
@@ -215,11 +230,23 @@ patch("autofill/autofill-content.js",
 
 # Keep the new UI strings available after future upstream syncs.
 patch("locales/zh-CN.lang",
+    "siteFilterEnabledText=仅显示当前网站匹配的验证码",
+    "siteFilterEnabledText=仅当前网站验证码")
+patch("locales/zh-CN.lang",
+    "siteFilterEnabledHint=根据当前网站自动匹配账号发行方或自定义域名规则",
+    "siteFilterEnabledHint=仅显示与当前网页匹配的已录入验证码\\nnoWebsiteMatchTitle=当前网站没有匹配的验证码\\nnoWebsiteMatchSub=已录入验证码的站点：{sites}")
+patch("locales/zh-CN.lang",
     "settingPermissionTitle=权限\n",
     "settingPermissionTitle=权限\nsettingSiteFilterTitle=当前网站验证码\nsiteFilterEnabledText=仅显示当前网站匹配的验证码\nsiteFilterEnabledHint=根据当前网站自动匹配账号发行方或自定义域名规则\n")
 patch("locales/zh-CN.lang",
     "permissionSavedToast=权限设置已保存\n",
     "permissionSavedToast=权限设置已保存\nautofillSuccess=已自动填入验证码\nnoOtpInput=当前网页没有可填入的输入框\nnoOtpInputCopied=未找到输入框，验证码已复制\nnoActiveTab=无法获取当前网页\n")
+patch("locales/en-US.lang",
+    "siteFilterEnabledText=Only show codes for the current website",
+    "siteFilterEnabledText=Only current website codes")
+patch("locales/en-US.lang",
+    "siteFilterEnabledHint=Match accounts automatically using the current website and issuer or custom domain rules.",
+    "siteFilterEnabledHint=Only show saved codes matching the current website.\\nnoWebsiteMatchTitle=No verification codes match this website\\nnoWebsiteMatchSub=Sites with saved verification codes: {sites}")
 patch("locales/en-US.lang",
     "settingPermissionTitle=Permission\n",
     "settingPermissionTitle=Permission\nsettingSiteFilterTitle=Current Website Codes\nsiteFilterEnabledText=Only show codes for the current website\nsiteFilterEnabledHint=Match accounts automatically using the current website and issuer or custom domain rules.\n")
