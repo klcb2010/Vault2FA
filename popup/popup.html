@@ -297,12 +297,14 @@
         <span id="syncEnableText">启用 WebDAV 自动同步</span>
       </label>
       <div class="fhint" id="syncEnabledHint">仅上传加密后的保险库数据。请先开启本地保险库加密并登录 WebDAV。</div>
+      <div class="fhint" id="syncDirectionHint">自动同步：本地新增、编辑或删除验证码后，自动备份到云端。删除操作也会同步，不能用于找回误删数据。</div>
     </div>
     <div class="sync-actions">
-       
       <button class="btn-secondary" id="btnUploadSync">立即上传</button>
       <button class="btn-danger" id="btnDownloadSync">立即下载</button>
     </div>
+    <div class="fhint" id="syncUploadHint">立即上传：用当前本地保险库覆盖云端备份。</div>
+    <div class="fhint" id="syncDownloadHint">立即下载：用云端备份覆盖本地保险库，操作前会再次确认。</div>
     <div class="warn-box" id="syncWarnOverwrite">Downloading from the cloud will overwrite your current local accounts. A confirmation dialog will appear first.</div>
     <div class="sync-meta" id="syncMeta"></div>
     <div class="err" id="syncErr"></div>
