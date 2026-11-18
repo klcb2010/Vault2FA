@@ -2061,6 +2061,10 @@ byId('syncEnabled').addEventListener('change', async () => {
     updateSyncUi();
     return;
   }
+  // WebDAV sync only uploads encrypted vault data; guide users to enable encryption first.
+  if(byId('syncEnabled').checked && !vaultStatus.encryptionEnabled){
+    byId('vaultEncryptionEnabled').checked = true;
+  }
   await persistWebdavSyncSettings();
 });
 
