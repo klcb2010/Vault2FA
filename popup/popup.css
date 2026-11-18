@@ -511,3 +511,6 @@ html, body {
   user-select: none;
 }
 #webdavPassword:disabled::selection { background: transparent; }
+.sync-version-label { margin-left:6px; color:var(--dim); font-size:10px; white-space:nowrap; }
+.sync-version-link { color:inherit; font-size:10px; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
+.sync-version-link:hover { color:var(--accent); }
