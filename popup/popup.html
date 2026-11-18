@@ -259,10 +259,10 @@
         <span class="settings-menu-label" id="settingSecurityTitle">Sync & Security</span>
         <img class="settings-menu-chevron" src="../icons/enter.svg" alt="" aria-hidden="true" />
       </button>
-      <button class="settings-menu-item" type="button" data-settings-section="site-filter">
-        <span class="settings-menu-label" id="settingSiteFilterTitle">当前网站验证码</span>
-        <img class="settings-menu-chevron" src="../icons/enter.svg" alt="" aria-hidden="true" />
-      </button>
+      <label class="settings-menu-item site-filter-menu-item">
+        <span class="settings-menu-label" id="settingSiteFilterTitle">仅显示当前网站验证码</span>
+        <input type="checkbox" id="siteFilterEnabled" class="site-filter-menu-toggle" aria-label="仅显示当前网站验证码" />
+      </label>
       <button class="settings-menu-item" type="button" data-settings-section="permission">
         <img class="settings-menu-logo" src="../icons/permission.svg" alt="" aria-hidden="true" />
         <span class="settings-menu-label" id="settingPermissionTitle">Permissions</span>
@@ -336,15 +336,6 @@
     </div>
     <div class="sync-meta" id="vaultMeta"></div>
     <div class="err" id="vaultErr"></div>
-    </div>
-    <div class="settings-section" data-settings-panel="site-filter">
-    <div class="fg sync-toggle-row">
-      <label class="toggle-wrap">
-        <input type="checkbox" id="siteFilterEnabled" />
-        <span id="siteFilterEnabledText">仅当前网站验证码</span>
-      </label>
-      <div class="fhint" id="siteFilterEnabledHint">根据当前网站自动匹配账号发行方或自定义域名规则。</div>
-    </div>
     </div>
     <div class="settings-section" data-settings-panel="permission">
     <div class="fg sync-toggle-row">
