@@ -4,7 +4,6 @@
 const SYNC_SETTINGS_KEY = 'syncSettings';
 const WEBDAV_CREDENTIALS_KEY = 'webdavCredentials';
 const WEBDAV_FILENAME = 'vault2fa-backup.json';
-const SYNC_AUTO_UPLOAD_ALARM = 'syncAutoUpload';
 
 const defaultSyncSettings = {
   enabled: false,
@@ -18,34 +17,27 @@ function normalizeSyncIntervalMinutes(value){
   return Math.max(1, parseInt(value, 10) || 5);
 }
 
-async function clearSyncAutoUploadAlarm(){
-  if(browser.alarms && typeof browser.alarms.clear === 'function') await browser.alarms.clear(SYNC_AUTO_UPLOAD_ALARM);
-}
+let webdavUploadDebounceTimer = null;
+let webdavUploadInProgress = false;
 
-async function scheduleNextSyncAutoUploadAlarm(settings){
-  const sync = settings || await getSyncSettings();
-  if(!sync.enabled || !sync.connected){
-    await clearSyncAutoUploadAlarm();
-    return;
-  }
-  if(browser.alarms && typeof browser.alarms.create === 'function'){
-    browser.alarms.create(SYNC_AUTO_UPLOAD_ALARM, { delayInMinutes: normalizeSyncIntervalMinutes(sync.intervalMinutes) });
-  }
-}
-
-async function ensureSyncAutoUploadAlarm(){
+async function scheduleWebdavUploadAfterLocalChange(){
   const settings = await getSyncSettings();
-  if(!settings.enabled || !settings.connected){
-    await clearSyncAutoUploadAlarm();
-    return;
-  }
-  if(!browser.alarms || typeof browser.alarms.get !== 'function'){
-    await runAutoUploadTick();
-    return;
-  }
-  if(await browser.alarms.get(SYNC_AUTO_UPLOAD_ALARM)) return;
-  try { await runAutoUploadTick(); }
-  finally { await scheduleNextSyncAutoUploadAlarm(settings); }
+  if(!settings.enabled || !settings.connected) return;
+  if(webdavUploadDebounceTimer) clearTimeout(webdavUploadDebounceTimer);
+  webdavUploadDebounceTimer = setTimeout(async () => {
+    webdavUploadDebounceTimer = null;
+    if(webdavUploadInProgress) return;
+    webdavUploadInProgress = true;
+    try {
+      await uploadToSync();
+    } catch(err) {
+      await appendDebugInfo('WebDAV change-triggered upload failed', {
+        error: err && err.message ? err.message : String(err),
+      });
+    } finally {
+      webdavUploadInProgress = false;
+    }
+  }, 900);
 }
 
 async function getSyncSettings(){
@@ -108,8 +100,17 @@ async function loginWebdav(settings){
   await webdavFetch(baseUrl, credentials, { method: 'PROPFIND', headers: { Depth: '0' } });
   await browser.storage.local.set({ [WEBDAV_CREDENTIALS_KEY]: credentials });
   const sync = await setSyncSettings({ connected: true });
-  await scheduleNextSyncAutoUploadAlarm(sync);
   return { success: true, settings: sync, url: baseUrl, username };
+}
+
+async function logoutWebdav(){
+  await browser.storage.local.remove(WEBDAV_CREDENTIALS_KEY);
+  const settings = await setSyncSettings({ connected: false, enabled: false });
+  if(webdavUploadDebounceTimer){
+    clearTimeout(webdavUploadDebounceTimer);
+    webdavUploadDebounceTimer = null;
+  }
+  return { success: true, settings };
 }
 
 async function requireWebdavCredentials(){
@@ -147,13 +148,6 @@ async function uploadToSync(){
   const result = { success: true, updatedAt, mode: 'encryptedPayload' };
   await appendDebugInfo('WebDAV upload completed', { updatedAt, mode: result.mode, status: response.status });
   return result;
-}
-
-async function runAutoUploadTick(){
-  const settings = await getSyncSettings();
-  if(!settings.enabled || !settings.connected) return { skipped: true, reason: 'disabled' };
-  // The encrypted payload can be uploaded while the vault is locked.
-  return uploadToSync();
 }
 
 async function downloadFromSync(options = {}){
