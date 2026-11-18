@@ -197,7 +197,7 @@ html, body {
   font-size:11px; color:var(--dim); flex-shrink:0; background:var(--surf);
 }
 .ftr-actions { flex:1; min-width:0; display:flex; align-items:center; justify-content:flex-end; margin-left:10px; }
-.sync-badge { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--green); }
+.sync-badge { display:flex; align-items:center; gap:4px; padding:6px 13px; border-radius:var(--rs); background:var(--accent); color:#000; font-family:inherit; font-size:12px; font-weight:600; white-space:nowrap; }
 .sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }
 .add-btn {
   display:flex; align-items:center; gap:5px; background:var(--accent); color:#000;
@@ -511,6 +511,6 @@ html, body {
   user-select: none;
 }
 #webdavPassword:disabled::selection { background: transparent; }
-.sync-version-label { margin-left:6px; color:var(--dim); font-size:10px; white-space:nowrap; }
-.sync-version-link { color:inherit; font-size:10px; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
-.sync-version-link:hover { color:var(--accent); }
+.sync-version-label { margin-left:6px; color:inherit; font:inherit; white-space:nowrap; }
+.sync-version-link { color:inherit; font:inherit; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
+.sync-version-link:hover { opacity:.8; }
