@@ -32,9 +32,6 @@ patch("popup/popup.js",
     versionLink.textContent = version;
     versionLink.title = tf('permissionVersionLinkTitle', '查看扩展版本');
   }""")
-patch("locales/zh-CN.lang",
-    "permissionSaveBtn=保存权限设置",
-    "permissionSaveBtn=保存权限设置\\npermissionVersionLabel=版本：")
 # Apply footer styles as a single idempotent override. Upstream CSS may already
 # contain earlier local edits, so do not depend on fragile upstream anchors.
 css_path = ROOT / "popup/popup.css"
@@ -66,7 +63,7 @@ patch("background/context-menu.js",
       });
     }
 """,
-    "")
+    "    // Vault2FA mod: editable-field context menu intentionally removed.\n")
 
 # Import/export all extension settings, including WebDAV credentials.
 patch("popup/popup.html",
@@ -400,30 +397,56 @@ patch("autofill/autofill-content.js",
       return false;
     });""")
 
-# Keep the new UI strings available after future upstream syncs.
-patch("locales/zh-CN.lang",
-    "siteFilterEnabledText=仅显示当前网站匹配的验证码",
-    "siteFilterEnabledText=仅当前网站验证码")
-patch("locales/zh-CN.lang",
-    "siteFilterEnabledHint=根据当前网站自动匹配账号发行方或自定义域名规则",
-    "siteFilterEnabledHint=仅显示与当前网页匹配的已录入验证码\\nnoWebsiteMatchTitle=当前网站没有匹配的验证码\\nnoWebsiteMatchSub=已录入验证码的站点：{sites}")
-patch("locales/zh-CN.lang",
-    "settingPermissionTitle=权限\n",
-    "settingPermissionTitle=权限\nsettingSiteFilterTitle=仅显示当前网站验证码\nsiteFilterEnabledText=仅显示当前网站验证码\nsiteFilterEnabledHint=仅显示与当前网页匹配的已录入验证码\nnoWebsiteMatchTitle=当前网站没有匹配的验证码\nnoWebsiteMatchSub=已录入验证码的站点：{sites}\n")
-patch("locales/zh-CN.lang",
-    "permissionSavedToast=权限设置已保存\n",
-    "permissionSavedToast=权限设置已保存\nautofillSuccess=已自动填入验证码\nnoOtpInput=当前网页没有可填入的输入框\nnoOtpInputCopied=未找到输入框，验证码已复制\nnoActiveTab=无法获取当前网页\n")
-patch("locales/en-US.lang",
-    "siteFilterEnabledText=Only show codes for the current website",
-    "siteFilterEnabledText=Only current website codes")
-patch("locales/en-US.lang",
-    "siteFilterEnabledHint=Match accounts automatically using the current website and issuer or custom domain rules.",
-    "siteFilterEnabledHint=Only show saved codes matching the current website.\\nnoWebsiteMatchTitle=No verification codes match this website\\nnoWebsiteMatchSub=Sites with saved verification codes: {sites}")
-patch("locales/en-US.lang",
-    "settingPermissionTitle=Permission\n",
-    "settingPermissionTitle=Permission\nsettingSiteFilterTitle=Only show current website codes\nsiteFilterEnabledText=Only show current website codes\nsiteFilterEnabledHint=Only show saved codes matching the current website.\nnoWebsiteMatchTitle=No verification codes match this website\nnoWebsiteMatchSub=Sites with saved verification codes: {sites}\n")
-patch("locales/en-US.lang",
-    "permissionSavedToast=Permission Settings saved\n",
-    "permissionSavedToast=Permission Settings saved\nautofillSuccess=Verification code filled automatically\nnoOtpInput=No suitable input field found on the current page\nnoOtpInputCopied=No input field found; code copied instead\nnoActiveTab=Unable to access the current tab\n")
+# Keep local UI strings stable across clean upstream release syncs.
+def set_lang_entries(relative, entries):
+    path = ROOT / relative
+    lines = path.read_text(encoding="utf-8").splitlines()
+    try:
+        start = lines.index("[popup]") + 1
+    except ValueError:
+        raise SystemExit(f"[mod] missing [popup] section in {relative}")
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("[") and lines[i].endswith("]")), len(lines))
+
+    for key, value in entries.items():
+        prefix = key + "="
+        matches = [i for i in range(start, end) if lines[i].startswith(prefix)]
+        if len(matches) > 1:
+            raise SystemExit(f"[mod] duplicate locale key in {relative}: {key}")
+        line = prefix + value
+        if matches:
+            lines[matches[0]] = line
+        else:
+            lines.insert(end, line)
+            end += 1
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+set_lang_entries("locales/zh-CN.lang", {
+    "permissionVersionLabel": "版本：",
+    "permissionVersionLinkTitle": "查看扩展版本",
+    "settingSiteFilterTitle": "仅显示当前网站验证码",
+    "siteFilterEnabledText": "仅当前网站验证码",
+    "siteFilterEnabledHint": "仅显示与当前网页匹配的已录入验证码",
+    "noWebsiteMatchTitle": "当前网站没有匹配的验证码",
+    "noWebsiteMatchSub": "已录入验证码的站点：{sites}",
+    "autofillSuccess": "已自动填入验证码",
+    "noOtpInput": "当前网页没有可填入的输入框",
+    "noOtpInputCopied": "未找到输入框，验证码已复制",
+    "noActiveTab": "无法获取当前网页",
+})
+set_lang_entries("locales/en-US.lang", {
+    "permissionVersionLabel": "Version:",
+    "permissionVersionLinkTitle": "View extension versions",
+    "settingSiteFilterTitle": "Current Website Codes",
+    "siteFilterEnabledText": "Only current website codes",
+    "siteFilterEnabledHint": "Only show saved codes matching the current website.",
+    "noWebsiteMatchTitle": "No codes match this website",
+    "noWebsiteMatchSub": "Sites with saved codes: {sites}",
+    "autofillSuccess": "Verification code filled automatically",
+    "noOtpInput": "No suitable input field found on the current page",
+    "noOtpInputCopied": "No input field found; code copied instead",
+    "noActiveTab": "Unable to access the current tab",
+})
 
 print("[mod] Firefox ID, Chinese default, current-site OTP filter and click-to-fill installed")
