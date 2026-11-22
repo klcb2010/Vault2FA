@@ -87,6 +87,12 @@ jobs:
           # Apply all local mod injections before packaging, including on manual/local releases.
           python3 mod/apply.py
 
+          # Fail the build before publishing if injected popup JavaScript is invalid.
+          node --check popup/popup.js
+          node --check locales/i18n.js
+          node --check background/context-menu.js
+          node --check autofill/autofill-content.js
+
           upstream_latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
           if [[ -z "$upstream_latest" ]]; then
             echo "Cannot determine upstream release tag."
