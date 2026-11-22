@@ -79,6 +79,19 @@ patch("popup/popup.html",
       <input id="importAllSettingsFile" type="file" accept="application/json,.json" style="display:none" />
       <div class="err" id="allSettingsErr"></div>
     </div>''')
+# Migrate installations that inherited the old English default once.
+patch("popup/popup.js",
+    "  const prefs = await browser.storage.local.get(['uiLanguage','uiTheme']);",
+    """  const prefs = await browser.storage.local.get(['uiLanguage','uiTheme','uiLanguageMigrationV1']);
+  if(!prefs.uiLanguageMigrationV1){
+    if(!prefs.uiLanguage || prefs.uiLanguage === 'en-US'){
+      prefs.uiLanguage = 'zh-CN';
+      await browser.storage.local.set({ uiLanguage:'zh-CN', uiLanguageMigrationV1:true });
+    } else {
+      await browser.storage.local.set({ uiLanguageMigrationV1:true });
+    }
+  }""")
+
 patch("popup/popup.js",
     "byId('btnLockVault').addEventListener('click', async () => {",
     r'''async function exportAllSettings(){
