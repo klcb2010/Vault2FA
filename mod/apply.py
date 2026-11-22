@@ -18,20 +18,11 @@ patch("popup/popup.html",
     '<div class="sync-badge" id="syncBadge"><div class="sync-dot" id="syncDot"></div><span id="syncBadgeText">Local only</span></div>',
     '<div class="sync-badge" id="syncBadge"><span id="syncBadgeText">Local only</span><span class="sync-version-label" id="permissionVersionLabel">版本：</span><a class="sync-version-link" id="permissionVersionLink" href="https://addons.mozilla.org/zh-CN/developers/addon/2d26ddb08f7841948d04/versions" target="_blank" rel="noopener noreferrer"></a></div>')
 patch("popup/popup.js",
-    "function applyStaticTranslations(){",
-    """function applyStaticTranslations(){
-  const versionLabel = byId('permissionVersionLabel');
-  const versionLink = byId('permissionVersionLink');
-  if(versionLabel) versionLabel.textContent = tf('permissionVersionLabel', '版本：');
-  if(versionLink){
-    let version = popupVersion;
-    try {
-      const manifest = browser.runtime.getManifest && browser.runtime.getManifest();
-      version = String((manifest && manifest.version) || version || '');
-    } catch (_) {}
-    versionLink.textContent = version;
-    versionLink.title = tf('permissionVersionLinkTitle', '查看扩展版本');
-  }""")
+    "tf('permissionVersionLabel', 'Current version:')",
+    "tf('permissionVersionLabel', '版本：')")
+patch("popup/popup.js",
+    "tf('permissionVersionLinkTitle', 'View add-on versions')",
+    "tf('permissionVersionLinkTitle', '查看扩展版本')")
 # Apply footer styles as a single idempotent override. Upstream CSS may already
 # contain earlier local edits, so do not depend on fragile upstream anchors.
 css_path = ROOT / "popup/popup.css"
@@ -232,7 +223,7 @@ patch("popup/popup.js",
     "let featureSettings = { autofillEnabled:true, rightclickEnabled:true, rightclickAutofillEnabled:true };",
     "let featureSettings = { autofillEnabled:true, rightclickEnabled:true, rightclickAutofillEnabled:true };\nlet siteFilterEnabled = true;\nlet currentSiteHostname = '';\nlet currentSiteTabId = null;")
 
-site_filter = """function siteFilterPatternMatches(hostname, pattern){
+site_filter = r"""function siteFilterPatternMatches(hostname, pattern){
   const host = normalizeAutofillPattern(hostname);
   const rule = normalizeAutofillPattern(pattern);
   if(!host || !rule) return false;
