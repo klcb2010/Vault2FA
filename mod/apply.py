@@ -51,6 +51,18 @@ patch("popup/popup.css",
 .sync-version-link { color:inherit; font:inherit; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
 .sync-version-link:hover { opacity:.8; }""")
 
+# Remove the editable-field context menu entry; keep image QR scanning.
+patch("background/context-menu.js",
+    """    if(featureSettings.rightclickAutofillEnabled !== false){
+      browser.contextMenus.create({
+        id: AUTOFILL_CONTEXT_MENU_ID,
+        title: getContextMenuTitle(language, 'openAutofillPopup'),
+        contexts: ['editable'],
+      });
+    }
+""",
+    "")
+
 # Firefox fork identity and Chinese first-run language.
 patch("manifest.json",
     '"id": "vault2fa@example.com"',
