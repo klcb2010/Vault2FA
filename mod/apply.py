@@ -63,6 +63,148 @@ patch("background/context-menu.js",
 """,
     "")
 
+# Remove the editable-field context menu entry; retain image QR scanning.
+patch("background/context-menu.js",
+    """    if(featureSettings.rightclickAutofillEnabled !== false){
+      browser.contextMenus.create({
+        id: AUTOFILL_CONTEXT_MENU_ID,
+        title: getContextMenuTitle(language, 'openAutofillPopup'),
+        contexts: ['editable'],
+      });
+    }
+""",
+    "")
+
+# Import/export all extension settings, including WebDAV credentials.
+patch("popup/popup.html",
+    '    <div class="err" id="vaultErr"></div>',
+    '''    <div class="err" id="vaultErr"></div>
+    <hr class="sep" />
+    <div class="fg">
+      <div class="sync-actions">
+        <button class="btn-secondary" id="btnExportAllSettings" type="button">导出全部设置</button>
+        <button class="btn-secondary" id="btnImportAllSettings" type="button">导入全部设置</button>
+      </div>
+      <div class="fhint">包含 WebDAV 用户名和密码。导出文件含明文凭据，请妥善保管；不包含验证码账号数据和本地加密密钥。</div>
+      <input id="importAllSettingsFile" type="file" accept="application/json,.json" style="display:none" />
+      <div class="err" id="allSettingsErr"></div>
+    </div>''')
+patch("popup/popup.js",
+    "byId('btnLockVault').addEventListener('click', async () => {",
+    r'''async function exportAllSettings(){
+  const keys = [
+    'uiLanguage','uiTheme','siteFilterEnabled','accountSettings',
+    'featureSettings','syncSettings','webdavCredentials','vaultSettings','debugSettings'
+  ];
+  const stored = await browser.storage.local.get(keys);
+  const settings = {
+    uiLanguage: stored.uiLanguage || 'zh-CN',
+    uiTheme: stored.uiTheme || 'auto',
+    siteFilterEnabled: stored.siteFilterEnabled !== false,
+    accountSettings: stored.accountSettings || {},
+    featureSettings: stored.featureSettings || {},
+    syncSettings: {
+      enabled: !!(stored.syncSettings && stored.syncSettings.enabled),
+      lastUploadedAt: stored.syncSettings && stored.syncSettings.lastUploadedAt || null,
+      lastDownloadedAt: stored.syncSettings && stored.syncSettings.lastDownloadedAt || null,
+    },
+    webdavCredentials: stored.webdavCredentials || null,
+    vaultSettings: {
+      autoLockEnabled: !!(stored.vaultSettings && stored.vaultSettings.autoLockEnabled),
+      autoLockMinutes: Number(stored.vaultSettings && stored.vaultSettings.autoLockMinutes || 15),
+    },
+    debugSettings: stored.debugSettings || { enabled:false },
+  };
+  const payload = {
+    format: 'vault2fa-settings',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    settings,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Vault2FA-settings.json';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importAllSettingsFile(file){
+  const errEl = byId('allSettingsErr');
+  errEl.style.display = 'none';
+  try {
+    const parsed = JSON.parse(await file.text());
+    if(!parsed || parsed.format !== 'vault2fa-settings' || parsed.version !== 1 || !parsed.settings){
+      throw new Error('设置文件格式无效或版本不受支持。');
+    }
+    const incoming = parsed.settings;
+    if(!window.confirm('导入将覆盖当前扩展设置，包括 WebDAV 用户名和密码，但不会覆盖验证码账号和本地加密密钥。继续吗？')) return;
+    const current = await browser.storage.local.get(['vaultSettings']);
+    const currentVault = current.vaultSettings || {};
+    const credentials = incoming.webdavCredentials;
+    if(credentials && (!credentials.url || !credentials.username || !credentials.password)){
+      throw new Error('设置文件中的 WebDAV 凭据不完整。');
+    }
+    const sync = incoming.syncSettings || {};
+    const encryptionEnabled = !!currentVault.encryptionEnabled;
+    const restoredSyncEnabled = !!sync.enabled && !!credentials && encryptionEnabled;
+    const values = {
+      uiLanguage: typeof incoming.uiLanguage === 'string' ? incoming.uiLanguage : 'zh-CN',
+      uiTheme: ['auto','light','dark'].includes(incoming.uiTheme) ? incoming.uiTheme : 'auto',
+      siteFilterEnabled: incoming.siteFilterEnabled !== false,
+      accountSettings: incoming.accountSettings && typeof incoming.accountSettings === 'object' ? incoming.accountSettings : {},
+      featureSettings: incoming.featureSettings && typeof incoming.featureSettings === 'object' ? incoming.featureSettings : {},
+      syncSettings: {
+        enabled: restoredSyncEnabled,
+        connected: !!credentials,
+        lastUploadedAt: sync.lastUploadedAt || null,
+        lastDownloadedAt: sync.lastDownloadedAt || null,
+      },
+      vaultSettings: Object.assign({}, currentVault, {
+        autoLockEnabled: !!(incoming.vaultSettings && incoming.vaultSettings.autoLockEnabled),
+        autoLockMinutes: Math.max(1, parseInt(incoming.vaultSettings && incoming.vaultSettings.autoLockMinutes, 10) || 15),
+      }),
+      debugSettings: incoming.debugSettings && typeof incoming.debugSettings === 'object'
+        ? { enabled: !!incoming.debugSettings.enabled } : { enabled:false },
+    };
+    if(credentials) values.webdavCredentials = credentials;
+    else values.webdavCredentials = undefined;
+    await browser.storage.local.set(values);
+    if(!credentials) await browser.storage.local.remove('webdavCredentials');
+    if(sync.enabled && !restoredSyncEnabled){
+      toast('设置已导入；由于当前保险库未加密或缺少 WebDAV 凭据，自动同步保持关闭。');
+    } else {
+      toast('全部设置已导入。');
+    }
+    window.location.reload();
+  } catch(err){
+    errEl.textContent = err && err.message ? err.message : String(err);
+    errEl.style.display = 'block';
+  }
+}
+
+byId('btnExportAllSettings').addEventListener('click', async () => {
+  if(!guardVaultUnlocked()) return;
+  try { await exportAllSettings(); }
+  catch(err){
+    const el = byId('allSettingsErr'); el.textContent = err.message; el.style.display = 'block';
+  }
+});
+byId('btnImportAllSettings').addEventListener('click', () => {
+  if(!guardVaultUnlocked()) return;
+  byId('importAllSettingsFile').click();
+});
+byId('importAllSettingsFile').addEventListener('change', async event => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if(file) await importAllSettingsFile(file);
+});
+
+byId('btnLockVault').addEventListener('click', async () => {''')
+
 # Firefox fork identity and Chinese first-run language.
 patch("manifest.json",
     '"id": "vault2fa@example.com"',
