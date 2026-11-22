@@ -159,9 +159,9 @@ async function importAllSettingsFile(file){
         ? { enabled: !!incoming.debugSettings.enabled } : { enabled:false },
     };
     if(credentials) values.webdavCredentials = credentials;
-    else values.webdavCredentials = undefined;
     await browser.storage.local.set(values);
     if(!credentials) await browser.storage.local.remove('webdavCredentials');
+    await sendMessage({ action:'saveVaultTimerSettings', settings:values.vaultSettings });
     if(sync.enabled && !restoredSyncEnabled){
       toast('设置已导入；由于当前保险库未加密或缺少 WebDAV 凭据，自动同步保持关闭。');
     } else {
