@@ -84,6 +84,9 @@ jobs:
           git checkout main
           git pull --ff-only origin main
 
+          # Apply all local mod injections before packaging, including on manual/local releases.
+          python3 mod/apply.py
+
           upstream_latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
           if [[ -z "$upstream_latest" ]]; then
             echo "Cannot determine upstream release tag."
