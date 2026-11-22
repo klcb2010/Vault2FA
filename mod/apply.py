@@ -291,7 +291,7 @@ async function fillAccountInActiveTab(account){
 patch("popup/popup.js", "function render(){\n", site_filter + "function render(){\n")
 patch("popup/popup.js",
     "  empty.style.display = visibleAccounts.length ? 'none' : 'flex';\n  const frag = document.createDocumentFragment();",
-    `  empty.style.display = visibleAccounts.length ? 'none' : 'flex';
+    """  empty.style.display = visibleAccounts.length ? 'none' : 'flex';
   const emptyTitle = byId('emptyTitle');
   const emptySub = byId('emptySub');
   if(siteFilterEnabled && accounts.length && !visibleAccounts.length && !q){
@@ -303,7 +303,8 @@ patch("popup/popup.js",
     emptyTitle.textContent = t('noAccountsYet');
     setMultilineText(emptySub, t('emptySub'));
   }
-  const frag = document.createDocumentFragment();`)
+  const frag = document.createDocumentFragment();""")
+
 patch("popup/popup.js",
     "  visibleAccounts = accounts\n    .filter(a => (a.issuer||'').toLowerCase().includes(q) || (a.label||'').toLowerCase().includes(q))",
     "  visibleAccounts = accounts\n    .filter(a => !siteFilterEnabled || accountMatchesCurrentSite(a))\n    .filter(a => (a.issuer||'').toLowerCase().includes(q) || (a.label||'').toLowerCase().includes(q))")
