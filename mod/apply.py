@@ -35,20 +35,21 @@ patch("popup/popup.js",
 patch("locales/zh-CN.lang",
     "permissionSaveBtn=保存权限设置",
     "permissionSaveBtn=保存权限设置\\npermissionVersionLabel=版本：")
-patch("popup/popup.css",
-    ".sync-badge { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--green); }",
-    ".sync-badge { display:flex; align-items:center; gap:4px; padding:6px 13px; border-radius:var(--rs); background:var(--accent); color:#000; font-family:inherit; font-size:12px; font-weight:600; white-space:nowrap; }")
-patch("popup/popup.css",
-    ".sync-badge.offline { color: var(--muted); }\n.sync-badge.offline .sync-dot { background: var(--muted); }\n.sync-badge.syncing { color: var(--accent); }\n.sync-badge.syncing .sync-dot { background: var(--accent); }",
-    ".sync-badge.offline,\\n.sync-badge.syncing { color:#000; }\\n.sync-badge.offline .sync-dot,\\n.sync-badge.syncing .sync-dot { background:#000; }")
-patch("popup/popup.css",
-    ".vault-pill { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%);",
-    ".vault-pill { position:absolute; left:calc(50% + 58px); top:50%; transform:translate(-50%, -50%);")
-# Add version-link styles once without depending on an upstream CSS anchor.
+# Apply footer styles as a single idempotent override. Upstream CSS may already
+# contain earlier local edits, so do not depend on fragile upstream anchors.
 css_path = ROOT / "popup/popup.css"
 css_source = css_path.read_text(encoding="utf-8")
-if ".sync-version-label {" not in css_source:
+if "/* Vault2FA local footer overrides */" not in css_source:
     css_source += """
+/* Vault2FA local footer overrides */
+.sync-badge {
+  display:flex; align-items:center; gap:4px; padding:6px 13px;
+  border-radius:var(--rs); background:var(--accent); color:#000;
+  font-family:inherit; font-size:12px; font-weight:600; white-space:nowrap;
+}
+.sync-badge.offline, .sync-badge.syncing { color:#000; }
+.sync-badge.offline .sync-dot, .sync-badge.syncing .sync-dot { background:#000; }
+.vault-pill { left:calc(50% + 58px); }
 .sync-version-label { margin-left:6px; color:inherit; font:inherit; white-space:nowrap; }
 .sync-version-link { color:inherit; font:inherit; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
 .sync-version-link:hover { opacity:.8; }
