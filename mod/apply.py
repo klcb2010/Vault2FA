@@ -256,7 +256,7 @@ async function initSiteFilter(){
     const tab = tabs && tabs[0];
     currentSiteTabId = tab && typeof tab.id === 'number' ? tab.id : null;
     const url = String(tab && tab.url || '');
-    if(/^https?:\\/\\//i.test(url)) currentSiteHostname = new URL(url).hostname.toLowerCase();
+    if(/^https?:\/\//i.test(url)) currentSiteHostname = new URL(url).hostname.toLowerCase();
   } catch (_) {
     currentSiteHostname = '';
     currentSiteTabId = null;
