@@ -84,7 +84,24 @@ jobs:
           git checkout main
           git pull --ff-only origin main
 
-          # Apply all local mod injections before packaging, including on manual/local releases.
+          # Only package when committed, package-relevant files changed since the
+          # latest published local build. README/workflow-only commits must not
+          # create a new XPI release.
+          last_published_tag="$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
+          if [[ -n "$last_published_tag" ]]; then
+            if git diff --quiet "${last_published_tag}..HEAD" -- . \
+              ':(exclude)README*' \
+              ':(exclude).github/**'; then
+              echo "No package-relevant committed changes since ${last_published_tag}; skip packaging."
+              exit 0
+            fi
+            echo "Package-relevant changes detected since ${last_published_tag}."
+          else
+            echo "No previous local release tag; perform the initial package."
+          fi
+
+          # Apply all local mod injections only after confirming there are
+          # committed package-relevant changes to publish.
           python3 mod/apply.py
 
           # Fail the build before publishing if injected popup JavaScript is invalid.
