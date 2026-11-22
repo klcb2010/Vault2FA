@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def patch(relative, old, new):
     path = ROOT / relative
     source = path.read_text(encoding="utf-8")
-    if new in source:
+    if new and new in source:
         return
     count = source.count(old)
     if count != 1:
