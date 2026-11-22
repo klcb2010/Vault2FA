@@ -299,7 +299,11 @@ async function fillAccountInActiveTab(account){
   return response;
 }
 """
-patch("popup/popup.js", "function render(){\n", site_filter + "function render(){\n")
+# The current upstream already contains the site-filter implementation.
+# Only inject it when syncing from an older upstream revision without these helpers.
+popup_js = (ROOT / "popup/popup.js").read_text(encoding="utf-8")
+if "function siteFilterPatternMatches(" not in popup_js:
+    patch("popup/popup.js", "function render(){\n", site_filter + "function render(){\n")
 patch("popup/popup.js",
     "  empty.style.display = visibleAccounts.length ? 'none' : 'flex';\n  const frag = document.createDocumentFragment();",
     """  empty.style.display = visibleAccounts.length ? 'none' : 'flex';
