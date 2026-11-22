@@ -44,9 +44,10 @@ patch("popup/popup.css",
 patch("popup/popup.css",
     ".vault-pill { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%);",
     ".vault-pill { position:absolute; left:calc(50% + 58px); top:50%; transform:translate(-50%, -50%);")
-patch("popup/popup.css",
-    ".sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }",
-    """.sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }
+if ".sync-version-label {" not in (ROOT / "popup/popup.css").read_text(encoding="utf-8"):
+    patch("popup/popup.css",
+        ".sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }",
+        """.sync-dot   { width:5px; height:5px; background:var(--green); border-radius:50%; }
 .sync-version-label { margin-left:6px; color:inherit; font:inherit; white-space:nowrap; }
 .sync-version-link { color:inherit; font:inherit; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
 .sync-version-link:hover { opacity:.8; }""")
