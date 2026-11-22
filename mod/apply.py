@@ -208,6 +208,11 @@ byId('importAllSettingsFile').addEventListener('change', async event => {
 
 byId('btnLockVault').addEventListener('click', async () => {''')
 
+# Surface the real startup exception in the popup instead of a generic message.
+patch("popup/popup.js",
+    "  toast(t('popupLoadFailed'));",
+    "  toast(t('popupLoadFailed') + ': ' + (err && err.message ? err.message : String(err)));")
+
 # Firefox fork identity and Chinese first-run language.
 patch("manifest.json",
     '"id": "vault2fa@example.com"',
