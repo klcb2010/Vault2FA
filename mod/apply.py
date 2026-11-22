@@ -60,30 +60,23 @@ patch("background/context-menu.js",
 patch("popup/popup.html",
     '    <div class="err" id="vaultErr"></div>',
     '''    <div class="err" id="vaultErr"></div>''')
-# Place settings backup/restore beside Sync & Security as a first-level settings page.
+# Put import and export as separate first-level actions in the settings menu.
 patch("popup/popup.html",
     '''      </button>
       <label class="settings-menu-item site-filter-menu-item">''',
     '''      </button>
-      <button class="settings-menu-item" type="button" data-settings-section="allSettings">
-        <span class="settings-menu-label" id="settingAllSettingsTitle">导入 / 导出全部设置</span>
-        <img class="settings-menu-chevron" src="../icons/enter.svg" alt="" aria-hidden="true" />
+      <button class="settings-menu-item" id="btnImportAllSettings" type="button" title="导入将覆盖对应设置，不会覆盖验证码账号和本地加密密钥。">
+        <span class="settings-menu-label">导入全部设置</span>
+      </button>
+      <button class="settings-menu-item" id="btnExportAllSettings" type="button" title="导出文件包含 WebDAV 用户名和密码明文，请妥善保管。">
+        <span class="settings-menu-label">导出全部设置</span>
       </button>
       <label class="settings-menu-item site-filter-menu-item">''')
 patch("popup/popup.html",
-    '    <div class="settings-section" data-settings-panel="permission">',
-    '''    <div class="settings-section" data-settings-panel="allSettings">
-    <div class="fg">
-      <div class="sync-actions">
-        <button class="btn-secondary" id="btnExportAllSettings" type="button">导出全部设置</button>
-        <button class="btn-secondary" id="btnImportAllSettings" type="button">导入全部设置</button>
-      </div>
-      <div class="fhint">包含 WebDAV 用户名和密码。导出文件含明文凭据，请妥善保管；不包含验证码账号数据和本地加密密钥。</div>
-      <input id="importAllSettingsFile" type="file" accept="application/json,.json" style="display:none" />
-      <div class="err" id="allSettingsErr"></div>
-    </div>
-    </div>
-    <div class="settings-section" data-settings-panel="permission">''')
+    '    <div class="settings-section" data-settings-panel="security">',
+    '''    <input id="importAllSettingsFile" type="file" accept="application/json,.json" style="display:none" />
+    <div class="err" id="allSettingsErr"></div>
+    <div class="settings-section" data-settings-panel="security">''')
 
 # Migrate installations that inherited the old English default once.
 patch("popup/popup.js",
