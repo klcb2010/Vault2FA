@@ -110,10 +110,17 @@ jobs:
           node --check background/context-menu.js
           node --check autofill/autofill-content.js
 
-          upstream_latest="$(gh api repos/DrJason33564/Vault2FA/releases/latest --jq .tag_name)"
+          upstream_release="$(gh api repos/DrJason33564/Vault2FA/releases/latest)"
+          upstream_latest="$(jq -r '.tag_name // empty' <<< "$upstream_release")"
+          upstream_release_notes="$(jq -r '.body // empty' <<< "$upstream_release")"
           if [[ -z "$upstream_latest" ]]; then
             echo "Cannot determine upstream release tag."
             exit 1
+          fi
+          if [[ -z "${upstream_release_notes//[[:space:]]/}" ]]; then
+            upstream_release_notes="上游版本：$upstream_latest
+
+          上游未提供详细发布说明。"
           fi
 
           base_version="${upstream_latest#v}"
@@ -150,13 +157,16 @@ jobs:
           echo "Prepared unsigned Firefox package: Vault2FA.xpi ($release_version)"
 
           if gh release view "$release_tag" --repo klcb2010/Vault2FA >/dev/null 2>&1; then
-            echo "Release $release_tag already exists; refreshing its XPI asset."
+            echo "Release $release_tag already exists; refreshing its notes and XPI asset."
+            gh release edit "$release_tag" \
+              --repo klcb2010/Vault2FA \
+              --notes "$upstream_release_notes"
           else
             gh release create "$release_tag" \
               --repo klcb2010/Vault2FA \
               --target "$head_sha" \
               --title "Vault2FA $release_tag" \
-              --generate-notes
+              --notes "$upstream_release_notes"
           fi
 
           gh release upload "$release_tag" "$GITHUB_WORKSPACE/Vault2FA.xpi" \
